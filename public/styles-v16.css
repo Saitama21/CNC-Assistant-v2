@@ -2515,3 +2515,168 @@ select,
   color: #6b8f00;
 }
 
+
+
+
+/* v17 — operator workflow polish: better light contrast + right action column like samples */
+.operator-coach {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 280px) minmax(270px, 320px);
+  align-items: start;
+}
+
+.operator-coach-side {
+  align-self: stretch;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+.operator-project-state {
+  min-height: 40px;
+  width: 100%;
+  justify-self: stretch;
+  font-size: 12px;
+  letter-spacing: .02em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.operator-state-legend {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-top: 2px;
+}
+
+.operator-state-legend span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.operator-coach-actions {
+  min-width: 0;
+  width: 100%;
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(122px, 1fr));
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.operator-coach-actions button {
+  min-height: 42px;
+  width: 100%;
+  justify-content: center;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.operator-coach-actions .primary-button {
+  box-shadow: 0 10px 24px rgba(159, 210, 25, .14), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+.operator-step-panel {
+  overflow: hidden;
+}
+
+#operatorWorkflowBody .split-layout {
+  align-items: start;
+}
+
+[data-theme="light"] .operator-workflow-shell {
+  background: linear-gradient(180deg, rgba(245,250,252,.76), rgba(238,244,247,.94));
+}
+
+[data-theme="light"] .operator-step-panel,
+[data-theme="light"] .shopturn-panel,
+[data-theme="light"] .shopturn-card,
+[data-theme="light"] .shopturn-workflow-shell {
+  background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(245,250,252,.88));
+}
+
+[data-theme="light"] .operator-coach-side {
+  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(244,249,251,.9));
+  border-color: rgba(54,74,88,.18);
+}
+
+[data-theme="light"] .operator-project-state {
+  background: rgba(255,255,255,.76);
+  color: #22313a;
+}
+
+[data-theme="light"] .operator-state-legend span {
+  color: #465761;
+}
+
+[data-theme="light"] .operator-panel-title,
+[data-theme="light"] .shopturn-section-title,
+[data-theme="light"] .shopturn-right-title {
+  color: #1c2730;
+}
+
+[data-theme="light"] .operator-coach-kicker,
+[data-theme="light"] .operator-review-hint,
+[data-theme="light"] .shopturn-hint {
+  color: #5b6b75;
+}
+
+[data-theme="light"] .operator-step.active {
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,249,252,.92));
+  border-color: rgba(159,210,25,.58);
+}
+
+[data-theme="light"] .operator-step.done {
+  background: linear-gradient(180deg, rgba(248,255,233,.96), rgba(238,248,220,.9));
+  border-color: rgba(159,210,25,.42);
+}
+
+[data-theme="light"] .shopturn-cell,
+[data-theme="light"] .shopturn-select,
+[data-theme="light"] .input,
+[data-theme="light"] textarea {
+  background: rgba(255,255,255,.84);
+}
+
+[data-theme="light"] .shopturn-cell.unknown {
+  background: rgba(255,194,77,.10);
+}
+
+[data-theme="light"] .secondary-button {
+  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(240,246,249,.84));
+  color: #1c2730;
+  border-color: rgba(54,74,88,.18);
+}
+
+@media (max-width: 1500px) {
+  .operator-coach {
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 260px) minmax(248px, 290px);
+  }
+}
+
+@media (max-width: 1280px) {
+  .operator-coach {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-coach-side,
+  .operator-coach-actions {
+    width: 100%;
+  }
+
+  .operator-coach-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .operator-state-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-coach-actions {
+    grid-template-columns: 1fr;
+  }
+}

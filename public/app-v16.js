@@ -85,7 +85,7 @@ const STORAGE_KEY = "cnc-ai-history-v2";
 const MODE_KEY = "cnc-ai-mode-v2";
 const THEME_KEY = "cnc-ai-theme-v1";
 const MEMORY_KEY = "cnc-ai-project-memory-v1";
-const UI_VERSION = "v16";
+const UI_VERSION = "v17";
 
 const DEFAULT_MEMORY = Object.freeze({
   machine: "Станок: SK52PT-Y\nСтойка: SINUMERIK 828D / ShopTurn",
