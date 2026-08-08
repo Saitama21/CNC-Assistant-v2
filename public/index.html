@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0d10" />
+  <meta id="themeColorMeta" name="theme-color" content="#0b0d10" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v14.css" />
+  <link rel="stylesheet" href="/styles-v15.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -26,6 +26,11 @@
           <option value="smart">Smart</option>
           <option value="fast">Fast</option>
         </select>
+        <button id="themeToggleButton" class="theme-toggle-button" type="button"
+          title="Переключить светлую/тёмную тему" aria-label="Переключить тему">
+          <span id="themeToggleIcon" aria-hidden="true">☾</span>
+          <span id="themeToggleText">Dark</span>
+        </button>
         <button id="memoryButton" class="memory-button" title="Память станка" aria-label="Память станка">
           <span class="memory-button-wide">Память</span><span class="memory-button-compact">П</span>
         </button>
@@ -350,6 +355,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v14.js" defer></script>
+  <script src="/app-v15.js" defer></script>
 </body>
 </html>
