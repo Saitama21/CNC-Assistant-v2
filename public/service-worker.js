@@ -1,4 +1,4 @@
-const CACHE = "cnc-ai-shell-v2";
+const CACHE = "cnc-ai-shell-v3";
 const APP_SHELL = [
   "/",
   "/styles.css",
