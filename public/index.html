@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v8.css" />
+  <link rel="stylesheet" href="/styles-v9.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -100,9 +100,10 @@
           <div class="eyebrow">Постоянный контекст</div>
           <h2 id="memoryTitle">Память станка</h2>
           <p class="memory-help">
-            Сохраняется локально в этом браузере и не стирается кнопкой «Новый чат».
-            Для переноса между ноутбуком и iPhone используй экспорт/импорт.
+            Основная копия хранится в Railway Postgres и синхронизируется между устройствами.
+            Локальная копия остаётся как резерв. Кнопка «Новый чат» память не стирает.
           </p>
+          <div id="memoryCloudStatus" class="memory-cloud-status">Проверяю облачную память…</div>
         </div>
         <button id="closeMemoryButton" class="icon-button" aria-label="Закрыть память">×</button>
       </header>
@@ -153,7 +154,7 @@
 
 
   <script>
-    // v8: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
+    // v9: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then((regs) => Promise.all(regs.map((r) => r.unregister())))
@@ -165,6 +166,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v8.js" defer></script>
+  <script src="/app-v9.js" defer></script>
 </body>
 </html>

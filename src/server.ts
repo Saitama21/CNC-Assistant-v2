@@ -4,6 +4,13 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { listAvailableModels, runChat, type AppMessage, type ProjectMemory } from "./openai.js";
+import {
+  databaseState,
+  initDatabase,
+  readCloudMemory,
+  writeCloudMemory,
+  type CloudMemory
+} from "./db.js";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -77,12 +84,46 @@ function authRequired(
   next();
 }
 
+
+const DEFAULT_MEMORY: CloudMemory = {
+  machine: "Станок: SK52PT-Y\nСтойка: SINUMERIK 828D / ShopTurn",
+  materials: "",
+  tools: "",
+  mCodes: "",
+  cutting: "",
+  notes: ""
+};
+
+function cleanMemoryField(value: unknown) {
+  return typeof value === "string" ? value.slice(0, 12000) : "";
+}
+
+function sanitizeMemory(value: any): CloudMemory {
+  const source =
+    value && typeof value === "object"
+      ? value
+      : {};
+
+  return {
+    machine:
+      typeof source.machine === "string"
+        ? source.machine.slice(0, 12000)
+        : DEFAULT_MEMORY.machine,
+    materials: cleanMemoryField(source.materials),
+    tools: cleanMemoryField(source.tools),
+    mCodes: cleanMemoryField(source.mCodes),
+    cutting: cleanMemoryField(source.cutting),
+    notes: cleanMemoryField(source.notes)
+  };
+}
+
 app.disable("x-powered-by");
 app.use(express.json({ limit: "15mb" }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, "..", "public");
+
 
 app.get("/api/auth/status", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -156,13 +197,72 @@ app.post("/api/auth/logout", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
+  const db = databaseState();
+
+  res.setHeader("Cache-Control", "no-store");
   res.json({
     ok: true,
     service: "cnc-assistant-v2",
     fastModel: process.env.FAST_MODEL || "gpt-5-mini",
     smartModel: process.env.SMART_MODEL || "gpt-5.6-sol",
-    supervisorEnabled: process.env.ENABLE_SUPERVISOR !== "false"
+    supervisorEnabled: process.env.ENABLE_SUPERVISOR !== "false",
+    databaseConfigured: db.configured,
+    databaseReady: db.ready
   });
+});
+
+
+app.get("/api/memory", authRequired, async (_req, res) => {
+  try {
+    const db = databaseState();
+
+    if (!db.configured || !db.ready) {
+      res.status(503).json({
+        error: db.error || "Cloud memory is not configured",
+        databaseConfigured: db.configured,
+        databaseReady: db.ready
+      });
+      return;
+    }
+
+    const result = await readCloudMemory();
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json(result);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown database error";
+
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put("/api/memory", authRequired, async (req, res) => {
+  try {
+    const db = databaseState();
+
+    if (!db.configured || !db.ready) {
+      res.status(503).json({
+        error: db.error || "Cloud memory is not configured",
+        databaseConfigured: db.configured,
+        databaseReady: db.ready
+      });
+      return;
+    }
+
+    const memory = sanitizeMemory(req.body?.memory);
+    const result = await writeCloudMemory(memory);
+
+    res.json({
+      ok: true,
+      ...result
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown database error";
+
+    res.status(500).json({ error: message });
+  }
 });
 
 app.get("/api/models", authRequired, async (_req, res) => {
@@ -201,22 +301,21 @@ app.post("/api/chat", authRequired, async (req, res) => {
         ? req.body.mode
         : "auto";
 
-    const rawMemory =
-      req.body?.memory && typeof req.body.memory === "object"
-        ? req.body.memory
-        : {};
+    let memory: ProjectMemory = sanitizeMemory(req.body?.memory);
 
-    const cleanMemoryField = (value: unknown) =>
-      typeof value === "string" ? value.slice(0, 12000) : "";
+    const db = databaseState();
 
-    const memory: ProjectMemory = {
-      machine: cleanMemoryField(rawMemory.machine),
-      materials: cleanMemoryField(rawMemory.materials),
-      tools: cleanMemoryField(rawMemory.tools),
-      mCodes: cleanMemoryField(rawMemory.mCodes),
-      cutting: cleanMemoryField(rawMemory.cutting),
-      notes: cleanMemoryField(rawMemory.notes)
-    };
+    if (db.ready) {
+      try {
+        const cloud = await readCloudMemory();
+
+        if (cloud.exists && cloud.memory) {
+          memory = cloud.memory;
+        }
+      } catch (error) {
+        console.warn("Cloud memory read failed; using client fallback:", error);
+      }
+    }
 
     const result = await runChat({
       messages,
@@ -261,6 +360,12 @@ app.use((_req, res) => {
   });
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`CNC Assistant listening on port ${port}`);
-});
+async function startServer() {
+  await initDatabase();
+
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`CNC Assistant listening on port ${port}`);
+  });
+}
+
+void startServer();
