@@ -74,3 +74,83 @@ export function buildProjectMemoryPrompt(memory?: {
 ${body}
 `.trim();
 }
+
+
+export function buildStructuredKnowledgePrompt(knowledge?: {
+  tools?: Array<any>;
+  materials?: Array<any>;
+  mCodes?: Array<any>;
+  journal?: Array<any>;
+}) {
+  if (!knowledge) return "";
+
+  const lines: string[] = [];
+
+  const tools = Array.isArray(knowledge.tools) ? knowledge.tools : [];
+  const materials = Array.isArray(knowledge.materials) ? knowledge.materials : [];
+  const mCodes = Array.isArray(knowledge.mCodes) ? knowledge.mCodes : [];
+  const journal = Array.isArray(knowledge.journal) ? knowledge.journal : [];
+
+  if (tools.length) {
+    lines.push("### Инструментальная база");
+    for (const tool of tools.slice(0, 80)) {
+      lines.push(
+        `- ${tool.toolNo || "без номера"}: ${tool.name || "без имени"}; ` +
+        `державка=${tool.holder || "—"}; пластина=${tool.insertCode || "—"}; ` +
+        `ширина=${tool.widthMm ?? "—"} мм; R=${tool.noseRadiusMm ?? "—"} мм; ` +
+        `назначение=${tool.purpose || "—"}; подтверждено=${tool.confirmed ? "да" : "нет"}; ` +
+        `заметки=${tool.notes || "—"}`
+      );
+    }
+  }
+
+  if (materials.length) {
+    lines.push("### Материалы");
+    for (const material of materials.slice(0, 80)) {
+      lines.push(
+        `- ${material.name || "без названия"} ${material.grade || ""}; ` +
+        `состояние=${material.condition || "—"}; подтверждено=${material.confirmed ? "да" : "нет"}; ` +
+        `заметки=${material.notes || "—"}`
+      );
+    }
+  }
+
+  if (mCodes.length) {
+    lines.push("### Подтверждённые/OEM M-коды");
+    for (const item of mCodes.slice(0, 80)) {
+      lines.push(
+        `- ${item.code || "M?"}: ${item.function || "—"}; ` +
+        `источник=${item.source || "—"}; подтверждено=${item.confirmed ? "да" : "нет"}; ` +
+        `заметки=${item.notes || "—"}`
+      );
+    }
+  }
+
+  if (journal.length) {
+    lines.push("### Последние записи журнала обработки");
+    for (const item of journal.slice(0, 40)) {
+      lines.push(
+        `- ${item.occurredAt || ""}: операция=${item.operation || "—"}; ` +
+        `материал=${item.material || "—"}; инструмент=${item.toolNo || "—"}; ` +
+        `диаметр=${item.diameterMm ?? "—"} мм; шпиндель=${item.spindle || "—"}; ` +
+        `подача=${item.feed || "—"}; результат=${item.result || "—"}; ` +
+        `заметки=${item.notes || "—"}`
+      );
+    }
+  }
+
+  if (!lines.length) return "";
+
+  return `
+СТРУКТУРИРОВАННАЯ БАЗА СТАНКА — записи пользователя из Railway Postgres.
+Правила:
+- записи с confirmed=false НЕ считай подтверждёнными фактами;
+- OEM/M-код применяй к этому станку только если он отмечен confirmed=true;
+- журнал — это наблюдения прошлых обработок, а не универсальная таблица режимов;
+- если текущая ситуация отличается по материалу, диаметру, инструменту или установке,
+  не копируй старые режимы без поправок;
+- при конфликте с текущими данными пользователя приоритет имеет текущий запрос.
+
+${lines.join("\n")}
+`.trim();
+}

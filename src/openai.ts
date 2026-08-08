@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { CNC_SYSTEM_PROMPT, SUPERVISOR_PROMPT, buildProjectMemoryPrompt } from "./prompts.js";
+import { CNC_SYSTEM_PROMPT, SUPERVISOR_PROMPT, buildProjectMemoryPrompt, buildStructuredKnowledgePrompt } from "./prompts.js";
 import { chooseModelMode, type RouteMode } from "./router.js";
 
 export type AppMessage = {
@@ -21,6 +21,12 @@ type ChatRequest = {
   imageDataUrl?: string | null;
   mode?: RouteMode;
   memory?: ProjectMemory;
+  knowledge?: {
+    tools?: Array<any>;
+    materials?: Array<any>;
+    mCodes?: Array<any>;
+    journal?: Array<any>;
+  };
 };
 
 const apiKey = process.env.OPENAI_API_KEY;
@@ -86,7 +92,10 @@ export async function runChat(request: ChatRequest) {
 
   const selectedModel = route === "smart" ? SMART_MODEL : FAST_MODEL;
   const memoryPrompt = buildProjectMemoryPrompt(request.memory);
-  const instructions = [CNC_SYSTEM_PROMPT, memoryPrompt].filter(Boolean).join("\n\n");
+  const knowledgePrompt = buildStructuredKnowledgePrompt(request.knowledge);
+  const instructions = [CNC_SYSTEM_PROMPT, memoryPrompt, knowledgePrompt]
+    .filter(Boolean)
+    .join("\n\n");
 
   const response = await client.responses.create({
     model: selectedModel,
@@ -104,7 +113,9 @@ export async function runChat(request: ChatRequest) {
   if (shouldSupervise) {
     const review = await client.responses.create({
       model: SUPERVISOR_MODEL,
-      instructions: [SUPERVISOR_PROMPT, memoryPrompt].filter(Boolean).join("\n\n"),
+      instructions: [SUPERVISOR_PROMPT, memoryPrompt, knowledgePrompt]
+        .filter(Boolean)
+        .join("\n\n"),
       input: [
         {
           role: "user",

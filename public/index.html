@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v9.css" />
+  <link rel="stylesheet" href="/styles-v11.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -28,6 +28,12 @@
         </select>
         <button id="memoryButton" class="memory-button" title="Память станка" aria-label="Память станка">
           <span class="memory-button-wide">Память</span><span class="memory-button-compact">П</span>
+        </button>
+        <button id="knowledgeButton" class="memory-button" title="База станка" aria-label="База станка">
+          <span class="memory-button-wide">База</span><span class="memory-button-compact">Б</span>
+        </button>
+        <button id="shopTurnButton" class="shopturn-top-button" title="Visual ShopTurn" aria-label="Visual ShopTurn">
+          ShopTurn
         </button>
         <button id="newChatButton" class="icon-button" title="Новый чат" aria-label="Новый чат">＋</button>
       </div>
@@ -93,6 +99,148 @@
   </div>
 
 
+
+
+  <div id="shopTurnModal" class="shopturn-backdrop hidden" aria-hidden="true">
+    <section class="shopturn-panel" role="dialog" aria-modal="true" aria-labelledby="shopTurnTitle">
+      <header class="shopturn-header">
+        <div>
+          <div class="eyebrow">Visual editor · SINUMERIK Operate / ShopTurn</div>
+          <h2 id="shopTurnTitle">ShopTurn v11</h2>
+          <p class="shopturn-help">
+            Загрузи чертёж — GPT-5.6 Sol заполнит ячейки. Неопределённые размеры остаются пустыми.
+          </p>
+        </div>
+        <button id="closeShopTurnButton" class="icon-button" aria-label="Закрыть ShopTurn">×</button>
+      </header>
+
+      <div class="shopturn-toolbar">
+        <label class="shopturn-upload">
+          <input id="shopTurnImageInput" type="file" accept="image/*" hidden />
+          <span>＋ Чертёж</span>
+        </label>
+        <input id="shopTurnPrompt" class="shopturn-prompt" placeholder="Например: Сделай ShopTurn по чертежу. Z0 на переднем торце." />
+        <button id="generateShopTurnButton" class="primary-button">Собрать</button>
+        <button id="saveShopTurnButton" class="secondary-button">Сохранить</button>
+      </div>
+
+      <div id="shopTurnImageWrap" class="shopturn-image-wrap hidden">
+        <img id="shopTurnImagePreview" alt="Чертёж для ShopTurn" />
+        <button id="removeShopTurnImage" class="remove-image" aria-label="Удалить чертёж">×</button>
+      </div>
+
+      <div id="shopTurnGenerationStatus" class="shopturn-generation-status">
+        Готов к построению.
+      </div>
+
+      <div class="shopturn-layout">
+        <aside class="shopturn-sidebar">
+          <div class="shopturn-side-title">Проекты</div>
+          <div id="shopTurnProjects" class="shopturn-project-list"></div>
+          <div class="shopturn-side-title">Технологическая карта</div>
+          <button id="shopTurnHeaderItem" class="shopturn-sequence-item active" data-op-index="-1">
+            Заголовок программы
+          </button>
+          <div id="shopTurnOperations" class="shopturn-operation-list"></div>
+        </aside>
+
+        <main class="shopturn-editor">
+          <section id="shopTurnHeaderForm" class="shopturn-form-section"></section>
+          <section id="shopTurnOperationForm" class="shopturn-form-section hidden"></section>
+        </main>
+
+        <aside class="shopturn-review">
+          <div class="shopturn-side-title">Проверка</div>
+          <div id="shopTurnWarnings" class="shopturn-warning-list"></div>
+          <div class="shopturn-side-title">Допущения</div>
+          <div id="shopTurnAssumptions" class="shopturn-warning-list"></div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+
+  <div id="knowledgeModal" class="modal-backdrop hidden" aria-hidden="true">
+    <section class="knowledge-panel" role="dialog" aria-modal="true" aria-labelledby="knowledgeTitle">
+      <header class="memory-header">
+        <div>
+          <div class="eyebrow">Структурированные данные</div>
+          <h2 id="knowledgeTitle">База SK52PT-Y</h2>
+          <p class="memory-help">
+            Инструменты, материалы, подтверждённые OEM M-коды и журнал обработки хранятся в Railway Postgres
+            и автоматически доступны GPT-5.6 Sol.
+          </p>
+        </div>
+        <button id="closeKnowledgeButton" class="icon-button" aria-label="Закрыть базу">×</button>
+      </header>
+
+      <nav class="knowledge-tabs" aria-label="Разделы базы">
+        <button class="knowledge-tab active" data-tab="tools">Инструменты</button>
+        <button class="knowledge-tab" data-tab="materials">Материалы</button>
+        <button class="knowledge-tab" data-tab="mcodes">M-коды</button>
+        <button class="knowledge-tab" data-tab="journal">Журнал</button>
+      </nav>
+
+      <div class="knowledge-content">
+        <section class="knowledge-section active" data-section="tools">
+          <form id="toolForm" class="knowledge-form">
+            <input id="toolNo" placeholder="T15" required />
+            <input id="toolName" placeholder="Отрезной резец" />
+            <input id="toolHolder" placeholder="Державка" />
+            <input id="toolInsertCode" placeholder="Пластина / код" />
+            <input id="toolWidthMm" type="number" step="0.001" placeholder="Ширина, мм" />
+            <input id="toolNoseRadiusMm" type="number" step="0.001" placeholder="Радиус R, мм" />
+            <input id="toolPurpose" class="wide" placeholder="Назначение" />
+            <textarea id="toolNotes" class="wide" rows="3" placeholder="Заметки"></textarea>
+            <label class="check-row wide"><input id="toolConfirmed" type="checkbox" checked /> Подтверждено на станке</label>
+            <button class="primary-button wide" type="submit">Сохранить инструмент</button>
+          </form>
+          <div id="toolsList" class="knowledge-list"></div>
+        </section>
+
+        <section class="knowledge-section" data-section="materials">
+          <form id="materialForm" class="knowledge-form">
+            <input id="materialName" placeholder="Нержавеющая сталь" required />
+            <input id="materialGrade" placeholder="AISI 304 / 08Х18Н10" />
+            <input id="materialCondition" class="wide" placeholder="Состояние / твёрдость / поставка" />
+            <textarea id="materialNotes" class="wide" rows="3" placeholder="Проверенные особенности обработки"></textarea>
+            <label class="check-row wide"><input id="materialConfirmed" type="checkbox" checked /> Материал подтверждён</label>
+            <button class="primary-button wide" type="submit">Добавить материал</button>
+          </form>
+          <div id="materialsList" class="knowledge-list"></div>
+        </section>
+
+        <section class="knowledge-section" data-section="mcodes">
+          <form id="mCodeForm" class="knowledge-form">
+            <input id="mCodeCode" placeholder="M12" required />
+            <input id="mCodeFunction" placeholder="Функция на SK52PT-Y" />
+            <input id="mCodeSource" class="wide" placeholder="Источник: мануал / проверено на станке / фото..." />
+            <textarea id="mCodeNotes" class="wide" rows="3" placeholder="Дополнительные условия"></textarea>
+            <label class="check-row wide"><input id="mCodeConfirmed" type="checkbox" /> Подтверждено именно на этом станке</label>
+            <button class="primary-button wide" type="submit">Сохранить M-код</button>
+          </form>
+          <div id="mCodesList" class="knowledge-list"></div>
+        </section>
+
+        <section class="knowledge-section" data-section="journal">
+          <form id="journalForm" class="knowledge-form">
+            <input id="journalOperation" placeholder="Отрезка / чистовая / резьба..." />
+            <input id="journalMaterial" placeholder="Материал" />
+            <input id="journalToolNo" placeholder="T15" />
+            <input id="journalDiameterMm" type="number" step="0.001" placeholder="Диаметр, мм" />
+            <input id="journalSpindle" placeholder="S600 / Vc 80 м/мин" />
+            <input id="journalFeed" placeholder="F0.05 мм/об" />
+            <input id="journalResult" class="wide" placeholder="Результат: хорошо / писк / вибрация..." />
+            <textarea id="journalNotes" class="wide" rows="3" placeholder="Что изменили и что получилось"></textarea>
+            <button class="primary-button wide" type="submit">Добавить в журнал</button>
+          </form>
+          <div id="journalList" class="knowledge-list"></div>
+        </section>
+      </div>
+    </section>
+  </div>
+
+
   <div id="memoryModal" class="modal-backdrop hidden" aria-hidden="true">
     <section class="memory-panel" role="dialog" aria-modal="true" aria-labelledby="memoryTitle">
       <header class="memory-header">
@@ -154,7 +302,7 @@
 
 
   <script>
-    // v9: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
+    // v11: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then((regs) => Promise.all(regs.map((r) => r.unregister())))
@@ -166,6 +314,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v9.js" defer></script>
+  <script src="/app-v11.js" defer></script>
 </body>
 </html>
