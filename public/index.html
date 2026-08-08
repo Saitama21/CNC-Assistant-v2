@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v7.css" />
+  <link rel="stylesheet" href="/styles-v8.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -67,6 +67,30 @@
       <div class="composer-note">Фото с iPhone сжимается локально перед отправкой.</div>
     </footer>
   </main>
+
+
+
+  <div id="loginModal" class="login-backdrop">
+    <section class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <div class="eyebrow">Защищённый доступ</div>
+      <h2 id="loginTitle">CNC AI</h2>
+      <p id="loginMessage" class="login-message">
+        Введи пароль приложения. Он хранится только в Railway Variables и не передаётся OpenAI.
+      </p>
+      <form id="loginForm" class="login-form">
+        <input
+          id="loginPassword"
+          class="login-input"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Пароль приложения"
+          aria-label="Пароль приложения"
+        />
+        <button id="loginSubmitButton" class="primary-button" type="submit">Войти</button>
+      </form>
+      <div id="loginError" class="login-error hidden"></div>
+    </section>
+  </div>
 
 
   <div id="memoryModal" class="modal-backdrop hidden" aria-hidden="true">
@@ -129,7 +153,7 @@
 
 
   <script>
-    // v7: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
+    // v8: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then((regs) => Promise.all(regs.map((r) => r.unregister())))
@@ -141,6 +165,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v7.js" defer></script>
+  <script src="/app-v8.js" defer></script>
 </body>
 </html>
