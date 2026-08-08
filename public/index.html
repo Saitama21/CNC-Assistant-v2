@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CNC AI" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>CNC AI</title>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">SK52PT-Y · SINUMERIK 828D</div>
+        <h1>CNC AI</h1>
+      </div>
+
+      <div class="top-actions">
+        <select id="modeSelect" aria-label="Режим модели">
+          <option value="auto">Auto</option>
+          <option value="smart">Smart</option>
+          <option value="fast">Fast</option>
+        </select>
+        <button id="newChatButton" class="icon-button" title="Новый чат" aria-label="Новый чат">＋</button>
+      </div>
+    </header>
+
+    <section id="statusBar" class="status-bar">
+      <span class="status-dot"></span>
+      <span id="statusText">Проверяю сервер…</span>
+    </section>
+
+    <section id="messages" class="messages" aria-live="polite">
+      <article class="message assistant">
+        <div class="message-label">CNC AI</div>
+        <div class="message-body">Напиши, что происходит на станке, или прикрепи фото экрана стойки.</div>
+      </article>
+    </section>
+
+    <section id="imagePreviewWrap" class="image-preview-wrap hidden">
+      <img id="imagePreview" alt="Предпросмотр" />
+      <button id="removeImageButton" class="remove-image" aria-label="Удалить фото">×</button>
+    </section>
+
+    <footer class="composer-wrap">
+      <div class="composer">
+        <button id="imageButton" class="attach-button" aria-label="Добавить фото">＋</button>
+        <input id="imageInput" type="file" accept="image/*" capture="environment" hidden />
+        <textarea
+          id="promptInput"
+          rows="1"
+          maxlength="12000"
+          placeholder="Напиши вопрос…"
+          autocomplete="off"
+          autocapitalize="sentences"
+        ></textarea>
+        <button id="sendButton" class="send-button" aria-label="Отправить">↑</button>
+      </div>
+      <div class="composer-note">Фото с iPhone сжимается локально перед отправкой.</div>
+    </footer>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

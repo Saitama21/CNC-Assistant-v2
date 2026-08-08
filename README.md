@@ -1,0 +1,143 @@
+# CNC Assistant v2
+
+Чистый Node.js + TypeScript проект для Railway с mobile-first интерфейсом под iPhone
+(включая safe areas, `100dvh`, камеру и PWA).
+
+## Что внутри
+
+- OpenAI **Responses API**
+- Fast/Smart роутер
+- Отдельный Supervisor для технических CNC-запросов и фото
+- Приём фото экрана стойки с iPhone
+- Локальное сжатие фото до отправки
+- PWA: можно добавить на главный экран iPhone
+- Один Railway service: frontend + backend вместе
+- API-ключ существует только на сервере
+
+## 1. Локальный запуск
+
+Нужен Node.js 20+.
+
+```bash
+npm install
+cp .env.example .env
+```
+
+Открой `.env` и вставь НОВЫЙ ключ:
+
+```env
+OPENAI_API_KEY=sk-proj_...
+FAST_MODEL=gpt-5-mini
+SMART_MODEL=gpt-5.6-sol
+SUPERVISOR_MODEL=gpt-5.6-sol
+ENABLE_SUPERVISOR=true
+PORT=3000
+```
+
+Потом:
+
+```bash
+npm run dev
+```
+
+Открой:
+
+```text
+http://localhost:3000
+```
+
+Проверка компиляции:
+
+```bash
+npm run check
+npm run build
+npm start
+```
+
+## 2. Проверить модели, доступные твоему API-ключу
+
+После запуска открой:
+
+```text
+http://localhost:3000/api/models
+```
+
+Ты увидишь реальные model IDs, доступные именно этому OpenAI API project.
+После этого можешь заменить `FAST_MODEL`, `SMART_MODEL` и `SUPERVISOR_MODEL`.
+
+Важно: модель, используемая внутри ChatGPT, и публичный API model ID — не одно и то же.
+Поэтому не надо угадывать название модели: бери ID из `/api/models`.
+
+## 3. Railway
+
+Самый простой вариант:
+
+1. Создай новый GitHub repository и залей туда содержимое этой папки.
+2. В Railway: **New Project → Deploy from GitHub repo**.
+3. В Variables добавь:
+   - `OPENAI_API_KEY`
+   - `FAST_MODEL`
+   - `SMART_MODEL`
+   - `SUPERVISOR_MODEL`
+   - `ENABLE_SUPERVISOR=true`
+4. Build command:
+   ```text
+   npm run build
+   ```
+5. Start command:
+   ```text
+   npm start
+   ```
+6. Healthcheck path:
+   ```text
+   /api/health
+   ```
+
+Railway сам передаст `PORT`; вручную там его обычно задавать не нужно.
+
+## 4. iPhone 14 Pro
+
+Открой публичный Railway URL в Safari.
+
+Чтобы поставить как приложение:
+
+**Share → Add to Home Screen**
+
+Интерфейс использует:
+- `viewport-fit=cover`
+- `env(safe-area-inset-top/bottom)`
+- `100dvh`
+- кнопку камеры `capture="environment"`
+
+То есть Dynamic Island / верхняя safe area и нижний home indicator учтены.
+
+## 5. Старые ключи
+
+Не отзывай старый рабочий ключ до того, как новый Railway service:
+- проходит `/api/health`;
+- отвечает на обычный текст;
+- принимает фото;
+- успешно делает Smart + Supervisor ответ.
+
+После этого старые OpenAI API keys можно revoke, а старый Railway service — выключить.
+
+## 6. Стоимость и задержка
+
+`ENABLE_SUPERVISOR=true` делает второй модельный запрос только для Smart/CNC/фото
+задач. Это повышает качество контроля, но увеличивает цену и задержку.
+
+Если нужно дешевле:
+
+```env
+ENABLE_SUPERVISOR=false
+```
+
+## 7. Безопасность
+
+Никогда не:
+- вставляй API key в `public/app.js`;
+- коммить `.env`;
+- показывай ключ в скриншотах;
+- отправляй ключ в чат.
+
+Если ключ когда-либо оказался публично — revoke и создай новый.
