@@ -1,6 +1,6 @@
 {
-  "name": "CNC AI Assistant",
-  "short_name": "CNC AI",
+  "name": "Yeroshov CNC",
+  "short_name": "Yeroshov CNC",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090b0e",
@@ -9,12 +9,16 @@
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
-  ]
+  ],
+  "description": "CNC AI Assistant for SK52PT-Y / SINUMERIK 828D",
+  "scope": "/"
 }
