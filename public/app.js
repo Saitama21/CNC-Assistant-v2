@@ -152,7 +152,7 @@ function addTypingMessage() {
 
   const body = document.createElement("div");
   body.className = "message-body";
-  body.textContent = "Смотрю";
+  renderMarkdown(body, content);
 
   article.append(label, body);
   messagesEl.appendChild(article);
@@ -288,4 +288,144 @@ function loadImage(src) {
     img.onerror = reject;
     img.src = src;
   });
+}
+function renderMarkdown(container, markdown) {
+  container.textContent = "";
+
+  const lines = String(markdown || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
+
+  let inCodeBlock = false;
+  let codeLines = [];
+  let currentList = null;
+
+  function flushList() {
+    if (currentList) {
+      container.appendChild(currentList);
+      currentList = null;
+    }
+  }
+
+  function appendCodeBlock() {
+    const pre = document.createElement("pre");
+    const code = document.createElement("code");
+
+    code.textContent = codeLines.join("\n");
+
+    pre.appendChild(code);
+    container.appendChild(pre);
+
+    codeLines = [];
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // ``` code block
+    if (trimmed.startsWith("```")) {
+      if (!inCodeBlock) {
+        flushList();
+        inCodeBlock = true;
+        codeLines = [];
+      } else {
+        appendCodeBlock();
+        inCodeBlock = false;
+      }
+
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeLines.push(line);
+      continue;
+    }
+
+    // ### Заголовок
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+
+    if (heading) {
+      flushList();
+
+      const level = heading[1].length;
+      const element = document.createElement(`h${level}`);
+
+      renderInlineMarkdown(element, heading[2]);
+      container.appendChild(element);
+
+      continue;
+    }
+
+    // - список
+    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+
+    if (bullet) {
+      if (!currentList) {
+        currentList = document.createElement("ul");
+      }
+
+      const li = document.createElement("li");
+
+      renderInlineMarkdown(li, bullet[1]);
+      currentList.appendChild(li);
+
+      continue;
+    }
+
+    flushList();
+
+    if (!trimmed) {
+      continue;
+    }
+
+    const paragraph = document.createElement("p");
+
+    renderInlineMarkdown(paragraph, line);
+    container.appendChild(paragraph);
+  }
+
+  if (inCodeBlock && codeLines.length) {
+    appendCodeBlock();
+  }
+
+  flushList();
+}
+
+function renderInlineMarkdown(parent, text) {
+  const pattern = /(\*\*.+?\*\*|`.+?`)/g;
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parent.appendChild(
+        document.createTextNode(
+          text.slice(lastIndex, match.index)
+        )
+      );
+    }
+
+    const token = match[0];
+
+    if (token.startsWith("**")) {
+      const strong = document.createElement("strong");
+
+      strong.textContent = token.slice(2, -2);
+      parent.appendChild(strong);
+    } else {
+      const code = document.createElement("code");
+
+      code.textContent = token.slice(1, -1);
+      parent.appendChild(code);
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parent.appendChild(
+      document.createTextNode(text.slice(lastIndex))
+    );
+  }
 }
