@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v6.css" />
+  <link rel="stylesheet" href="/styles-v7.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -26,6 +26,9 @@
           <option value="smart">Smart</option>
           <option value="fast">Fast</option>
         </select>
+        <button id="memoryButton" class="memory-button" title="Память станка" aria-label="Память станка">
+          <span class="memory-button-wide">Память</span><span class="memory-button-compact">П</span>
+        </button>
         <button id="newChatButton" class="icon-button" title="Новый чат" aria-label="Новый чат">＋</button>
       </div>
     </header>
@@ -66,8 +69,67 @@
   </main>
 
 
+  <div id="memoryModal" class="modal-backdrop hidden" aria-hidden="true">
+    <section class="memory-panel" role="dialog" aria-modal="true" aria-labelledby="memoryTitle">
+      <header class="memory-header">
+        <div>
+          <div class="eyebrow">Постоянный контекст</div>
+          <h2 id="memoryTitle">Память станка</h2>
+          <p class="memory-help">
+            Сохраняется локально в этом браузере и не стирается кнопкой «Новый чат».
+            Для переноса между ноутбуком и iPhone используй экспорт/импорт.
+          </p>
+        </div>
+        <button id="closeMemoryButton" class="icon-button" aria-label="Закрыть память">×</button>
+      </header>
+
+      <div class="memory-grid">
+        <label class="memory-field">
+          <span>Станок и стойка</span>
+          <textarea id="memoryMachine" rows="4" placeholder="Модель станка, стойка, кинематика, особенности..."></textarea>
+        </label>
+
+        <label class="memory-field">
+          <span>Материалы</span>
+          <textarea id="memoryMaterials" rows="4" placeholder="Например: AISI 304 — часто обрабатываем..."></textarea>
+        </label>
+
+        <label class="memory-field">
+          <span>Инструмент</span>
+          <textarea id="memoryTools" rows="5" placeholder="T1..., T15 отрезной..., пластины, ширина, корректор..."></textarea>
+        </label>
+
+        <label class="memory-field">
+          <span>Подтверждённые M-коды / OEM-функции</span>
+          <textarea id="memoryMCodes" rows="5" placeholder="Только то, что проверено именно на этом станке."></textarea>
+        </label>
+
+        <label class="memory-field">
+          <span>Подтверждённые режимы и настройки</span>
+          <textarea id="memoryCutting" rows="5" placeholder="Материал + диаметр + инструмент + S/F/Vc + результат..."></textarea>
+        </label>
+
+        <label class="memory-field">
+          <span>Прочие подтверждённые заметки</span>
+          <textarea id="memoryNotes" rows="5" placeholder="Нули, особенности ShopTurn, безопасные ограничения и т.п."></textarea>
+        </label>
+      </div>
+
+      <footer class="memory-footer">
+        <div class="memory-secondary-actions">
+          <button id="exportMemoryButton" class="secondary-button">Экспорт</button>
+          <button id="importMemoryButton" class="secondary-button">Импорт</button>
+          <input id="importMemoryInput" type="file" accept="application/json,.json" hidden />
+          <button id="resetMemoryButton" class="secondary-button danger-button">Сбросить</button>
+        </div>
+        <button id="saveMemoryButton" class="primary-button">Сохранить память</button>
+      </footer>
+    </section>
+  </div>
+
+
   <script>
-    // v6: remove old Service Workers/caches so Railway deploys cannot get stuck on stale JS.
+    // v7: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then((regs) => Promise.all(regs.map((r) => r.unregister())))
@@ -79,6 +141,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v6.js" defer></script>
+  <script src="/app-v7.js" defer></script>
 </body>
 </html>

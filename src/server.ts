@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { listAvailableModels, runChat, type AppMessage } from "./openai.js";
+import { listAvailableModels, runChat, type AppMessage, type ProjectMemory } from "./openai.js";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -60,10 +60,28 @@ app.post("/api/chat", async (req, res) => {
         ? req.body.mode
         : "auto";
 
+    const rawMemory =
+      req.body?.memory && typeof req.body.memory === "object"
+        ? req.body.memory
+        : {};
+
+    const cleanMemoryField = (value: unknown) =>
+      typeof value === "string" ? value.slice(0, 12000) : "";
+
+    const memory: ProjectMemory = {
+      machine: cleanMemoryField(rawMemory.machine),
+      materials: cleanMemoryField(rawMemory.materials),
+      tools: cleanMemoryField(rawMemory.tools),
+      mCodes: cleanMemoryField(rawMemory.mCodes),
+      cutting: cleanMemoryField(rawMemory.cutting),
+      notes: cleanMemoryField(rawMemory.notes)
+    };
+
     const result = await runChat({
       messages,
       imageDataUrl,
-      mode
+      mode,
+      memory
     });
 
     res.json(result);

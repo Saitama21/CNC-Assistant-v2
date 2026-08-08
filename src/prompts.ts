@@ -33,3 +33,44 @@ export const SUPERVISOR_PROMPT = `
 Верни только исправленный финальный ответ пользователю на русском.
 Если черновик корректен — просто аккуратно перепиши его без комментариев о проверке.
 `.trim();
+
+
+export function buildProjectMemoryPrompt(memory?: {
+  machine?: string;
+  materials?: string;
+  tools?: string;
+  mCodes?: string;
+  cutting?: string;
+  notes?: string;
+}) {
+  if (!memory) return "";
+
+  const sections = [
+    ["Станок и стойка", memory.machine],
+    ["Материалы", memory.materials],
+    ["Инструмент", memory.tools],
+    ["Подтверждённые M-коды / OEM-функции", memory.mCodes],
+    ["Подтверждённые режимы и настройки", memory.cutting],
+    ["Прочие подтверждённые заметки", memory.notes]
+  ]
+    .map(([title, value]) => [title, String(value || "").trim()] as const)
+    .filter(([, value]) => value.length > 0);
+
+  if (!sections.length) return "";
+
+  const body = sections
+    .map(([title, value]) => `### ${title}\n${value}`)
+    .join("\n\n");
+
+  return `
+ПАМЯТЬ ПРОЕКТА — данные, которые пользователь вручную сохранил для этого конкретного станка.
+Используй их как подтверждённый пользовательский контекст, но соблюдай правила:
+- текущий явный запрос пользователя имеет приоритет над памятью;
+- если текущие данные конфликтуют с памятью, укажи конфликт и попроси проверить;
+- не расширяй и не додумывай сохранённые факты;
+- сохранённый M-код/OEM-функция относится только к этому станку, если не сказано иное;
+- не выдавай эти записи за внешне проверенную документацию.
+
+${body}
+`.trim();
+}
