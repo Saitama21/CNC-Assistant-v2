@@ -13,6 +13,7 @@ const statusText = document.getElementById("statusText");
 
 const STORAGE_KEY = "cnc-ai-history-v2";
 const MODE_KEY = "cnc-ai-mode-v2";
+const UI_VERSION = "v6";
 
 let history = loadHistory();
 let pendingImageDataUrl = null;
@@ -21,12 +22,6 @@ let busy = false;
 modeSelect.value = localStorage.getItem(MODE_KEY) || "auto";
 renderStoredHistory();
 checkHealth();
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/service-worker.js?v=5").catch(() => {});
-  });
-}
 
 modeSelect.addEventListener("change", () => {
   localStorage.setItem(MODE_KEY, modeSelect.value);
@@ -180,6 +175,7 @@ function addMessageToDom(role, content, meta = null, photo = null) {
   body.className = "message-body";
 
   if (role === "assistant") {
+    body.classList.add("markdown");
     renderMarkdown(body, content);
   } else {
     body.textContent = content;
@@ -255,7 +251,8 @@ async function checkHealth() {
     statusBar.classList.remove("error");
     statusText.textContent =
       `${payload.fastModel} / ${payload.smartModel}` +
-      (payload.supervisorEnabled ? " · supervisor ON" : " · supervisor OFF");
+      (payload.supervisorEnabled ? " · supervisor ON" : " · supervisor OFF") +
+      ` · UI ${UI_VERSION}`;
   } catch {
     statusBar.classList.add("error");
     statusBar.classList.remove("ok");

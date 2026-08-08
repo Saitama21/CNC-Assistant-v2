@@ -154,3 +154,12 @@ ENABLE_SUPERVISOR=false
 - Service Worker v5 использует network-first для HTML/JS/CSS, чтобы новые Railway deploy не зависали на старом кэше.
 
 После замены файлов в GitHub достаточно сделать commit в `main`; Railway должен пересобраться автоматически.
+
+
+## v6 — cache/Markdown fix
+
+В этой сборке frontend-файлы переименованы в `app-v6.js` и `styles-v6.css`.
+Старый Service Worker автоматически удаляется, а HTML/JS/CSS отдаются с `Cache-Control: no-store`.
+
+После успешного deploy в верхней строке состояния должно быть видно `UI v6`.
+Если видно `UI v6`, браузер точно загрузил новую сборку.

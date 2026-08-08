@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles-v6.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -65,6 +65,20 @@
     </footer>
   </main>
 
-  <script src="/app.js?v=5" defer></script>
+
+  <script>
+    // v6: remove old Service Workers/caches so Railway deploys cannot get stuck on stale JS.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+        .catch(() => {});
+    }
+    if ("caches" in window) {
+      caches.keys()
+        .then((keys) => Promise.all(keys.filter((k) => k.startsWith("cnc-ai-")).map((k) => caches.delete(k))))
+        .catch(() => {});
+    }
+  </script>
+  <script src="/app-v6.js" defer></script>
 </body>
 </html>

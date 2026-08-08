@@ -86,13 +86,20 @@ app.post("/api/chat", async (req, res) => {
 
 app.use(
   express.static(publicDir, {
-    etag: true,
-    maxAge: "1h"
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res, filePath) => {
+      if (/\.(html|js|css)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      }
+    }
   })
 );
 
 app.use((_req, res) => {
-  res.sendFile(path.join(publicDir, "index.html"));
+  res.sendFile(path.join(publicDir, "index.html"), {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" }
+  });
 });
 
 app.listen(port, "0.0.0.0", () => {
