@@ -1,8 +1,5 @@
-const CACHE = "cnc-ai-shell-v3";
+const CACHE = "cnc-ai-shell-v5";
 const APP_SHELL = [
-  "/",
-  "/styles.css",
-  "/app.js",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -26,8 +23,25 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
+  // API никогда не кэшируем.
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // HTML/JS/CSS — network first, чтобы новые Railway deploy не застревали в старом кэше.
+  const networkFirst =
+    event.request.mode === "navigate" ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname === "/";
+
+  if (networkFirst) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => response)
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    );
     return;
   }
 

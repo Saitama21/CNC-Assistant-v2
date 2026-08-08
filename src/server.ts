@@ -90,12 +90,7 @@ app.use(
     maxAge: "1h"
   })
 );
-app.use(
-  express.static(publicDir, {
-    etag: true,
-    maxAge: "1h"
-  })
-);
+
 app.use((_req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });

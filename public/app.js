@@ -24,7 +24,7 @@ checkHealth();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+    navigator.serviceWorker.register("/service-worker.js?v=5").catch(() => {});
   });
 }
 
@@ -152,7 +152,7 @@ function addTypingMessage() {
 
   const body = document.createElement("div");
   body.className = "message-body";
-  renderMarkdown(body, content);
+  body.textContent = "Смотрю";
 
   article.append(label, body);
   messagesEl.appendChild(article);
@@ -178,7 +178,12 @@ function addMessageToDom(role, content, meta = null, photo = null) {
 
   const body = document.createElement("div");
   body.className = "message-body";
-  body.textContent = content;
+
+  if (role === "assistant") {
+    renderMarkdown(body, content);
+  } else {
+    body.textContent = content;
+  }
 
   article.append(label, body);
 
@@ -289,41 +294,38 @@ function loadImage(src) {
     img.src = src;
   });
 }
+
+// Безопасный Markdown-рендерер: не использует innerHTML.
 function renderMarkdown(container, markdown) {
   container.textContent = "";
 
-  const lines = String(markdown || "")
-    .replace(/\r\n/g, "\n")
-    .split("\n");
-
+  const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
   let inCodeBlock = false;
   let codeLines = [];
   let currentList = null;
+  let currentListType = null;
 
-  function flushList() {
-    if (currentList) {
-      container.appendChild(currentList);
-      currentList = null;
-    }
-  }
+  const flushList = () => {
+    if (!currentList) return;
+    container.appendChild(currentList);
+    currentList = null;
+    currentListType = null;
+  };
 
-  function appendCodeBlock() {
+  const appendCodeBlock = () => {
     const pre = document.createElement("pre");
     const code = document.createElement("code");
-
     code.textContent = codeLines.join("\n");
-
     pre.appendChild(code);
     container.appendChild(pre);
-
     codeLines = [];
-  }
+  };
 
-  for (const line of lines) {
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+$/g, "");
     const trimmed = line.trim();
 
-    // ``` code block
-    if (trimmed.startsWith("```")) {
+    if (/^```/.test(trimmed)) {
       if (!inCodeBlock) {
         flushList();
         inCodeBlock = true;
@@ -332,100 +334,80 @@ function renderMarkdown(container, markdown) {
         appendCodeBlock();
         inCodeBlock = false;
       }
-
       continue;
     }
 
     if (inCodeBlock) {
-      codeLines.push(line);
+      codeLines.push(rawLine);
       continue;
     }
 
-    // ### Заголовок
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
-
+    const heading = line.match(/^\s*(#{1,4})\s+(.+)$/);
     if (heading) {
       flushList();
-
-      const level = heading[1].length;
-      const element = document.createElement(`h${level}`);
-
-      renderInlineMarkdown(element, heading[2]);
-      container.appendChild(element);
-
+      const level = Math.min(4, heading[1].length);
+      const h = document.createElement(`h${level}`);
+      renderInlineMarkdown(h, heading[2]);
+      container.appendChild(h);
       continue;
     }
 
-    // - список
     const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+    const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
 
-    if (bullet) {
-      if (!currentList) {
-        currentList = document.createElement("ul");
+    if (bullet || ordered) {
+      const type = ordered ? "ol" : "ul";
+      if (!currentList || currentListType !== type) {
+        flushList();
+        currentList = document.createElement(type);
+        currentListType = type;
       }
 
       const li = document.createElement("li");
-
-      renderInlineMarkdown(li, bullet[1]);
+      renderInlineMarkdown(li, (ordered || bullet)[1]);
       currentList.appendChild(li);
-
       continue;
     }
 
     flushList();
 
-    if (!trimmed) {
-      continue;
-    }
+    if (!trimmed) continue;
 
-    const paragraph = document.createElement("p");
-
-    renderInlineMarkdown(paragraph, line);
-    container.appendChild(paragraph);
+    const p = document.createElement("p");
+    renderInlineMarkdown(p, line);
+    container.appendChild(p);
   }
 
-  if (inCodeBlock && codeLines.length) {
-    appendCodeBlock();
-  }
-
+  if (inCodeBlock) appendCodeBlock();
   flushList();
 }
 
 function renderInlineMarkdown(parent, text) {
-  const pattern = /(\*\*.+?\*\*|`.+?`)/g;
-
+  const source = String(text || "");
+  const tokenPattern = /(\*\*[^*]+?\*\*|`[^`]+?`)/g;
   let lastIndex = 0;
   let match;
 
-  while ((match = pattern.exec(text)) !== null) {
+  while ((match = tokenPattern.exec(source)) !== null) {
     if (match.index > lastIndex) {
-      parent.appendChild(
-        document.createTextNode(
-          text.slice(lastIndex, match.index)
-        )
-      );
+      parent.appendChild(document.createTextNode(source.slice(lastIndex, match.index)));
     }
 
     const token = match[0];
-
     if (token.startsWith("**")) {
       const strong = document.createElement("strong");
-
       strong.textContent = token.slice(2, -2);
       parent.appendChild(strong);
     } else {
       const code = document.createElement("code");
-
       code.textContent = token.slice(1, -1);
       parent.appendChild(code);
     }
 
-    lastIndex = pattern.lastIndex;
+    lastIndex = tokenPattern.lastIndex;
   }
 
-  if (lastIndex < text.length) {
-    parent.appendChild(
-      document.createTextNode(text.slice(lastIndex))
-    );
+  if (lastIndex < source.length) {
+    parent.appendChild(document.createTextNode(source.slice(lastIndex)));
   }
 }

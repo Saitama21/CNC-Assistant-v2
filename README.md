@@ -141,3 +141,16 @@ ENABLE_SUPERVISOR=false
 - отправляй ключ в чат.
 
 Если ключ когда-либо оказался публично — revoke и создай новый.
+
+## Исправления в сборке FINAL v5
+
+Эта сборка уже содержит исправления, найденные при Railway-деплое:
+
+- Express 5: fallback использует `app.use(...)`, а не `app.get("*")`.
+- Путь frontend исправлен на `/app/public` после TypeScript build.
+- Markdown ответов рендерится безопасно без `innerHTML`.
+- Поддерживаются заголовки, списки, **жирный текст**, `inline code` и fenced code blocks.
+- `app.js?v=5` принудительно обходит старый browser cache.
+- Service Worker v5 использует network-first для HTML/JS/CSS, чтобы новые Railway deploy не зависали на старом кэше.
+
+После замены файлов в GitHub достаточно сделать commit в `main`; Railway должен пересобраться автоматически.
