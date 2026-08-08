@@ -639,6 +639,11 @@ export async function generateShopTurnPlan(args: {
   memory?: ProjectMemory;
   knowledge?: Knowledge;
   programHeader?: Partial<ShopTurnPlan["program"]> | null;
+  operatorContext?: {
+    material?: string;
+    materialConfirmed?: boolean;
+    operatorNote?: string;
+  } | null;
 }) {
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
@@ -667,6 +672,14 @@ ${args.programHeader?.headerConfirmed
   ? `OPERATOR-CONFIRMED PROGRAM HEADER (копировать без изменений):\n${JSON.stringify(args.programHeader, null, 2)}`
   : "Фактическая заготовка оператором не подтверждена. Не выводи размеры болванки из размеров готовой детали."}
 
+${args.operatorContext?.materialConfirmed && args.operatorContext?.material
+  ? `OPERATOR-CONFIRMED MATERIAL: ${args.operatorContext.material}`
+  : "Материал оператором не подтверждён. Не назначай режимы как будто материал известен."}
+
+${args.operatorContext?.operatorNote
+  ? `OPERATOR NOTE: ${args.operatorContext.operatorNote}`
+  : ""}
+
 Сформируй установки и технологические кадры. Если данных недостаточно, оставляй null и предупреждай.
 `.trim();
 
@@ -676,7 +689,7 @@ ${args.programHeader?.headerConfirmed
     SMART_MODEL,
     planInstructions,
     planPrompt,
-    "shopturn_plan_v13",
+    "shopturn_plan_v14",
     planSchema,
     args.imageDataUrl
   );
@@ -714,7 +727,7 @@ ${JSON.stringify({ program: plan.program, setups: plan.setups, warnings: plan.wa
       SUPERVISOR_MODEL,
       planInstructions,
       supervisorPrompt,
-      "shopturn_plan_v13_supervised",
+      "shopturn_plan_v14_supervised",
       planSchema,
       args.imageDataUrl
     );
@@ -734,6 +747,6 @@ ${JSON.stringify({ program: plan.program, setups: plan.setups, warnings: plan.wa
     model: SMART_MODEL,
     supervised: shouldSupervise,
     supervisorModel: shouldSupervise ? SUPERVISOR_MODEL : null,
-    pipeline: "actual-blank→drawing→geometry→validation→setups→shopturn→supervisor"
+    pipeline: "operator-workflow→actual-blank→drawing→geometry→setups→tooling→shopturn→review→simulation"
   };
 }

@@ -558,12 +558,22 @@ app.post("/api/shopturn/generate", authRequired, async (req, res) => {
         ? req.body.programHeader
         : null;
 
+    const operatorContext =
+      req.body?.operatorContext && typeof req.body.operatorContext === "object"
+        ? {
+            material: cleanText(req.body.operatorContext.material, 300),
+            materialConfirmed: req.body.operatorContext.materialConfirmed === true,
+            operatorNote: cleanText(req.body.operatorContext.operatorNote, 4000)
+          }
+        : null;
+
     const result = await generateShopTurnPlan({
       prompt,
       imageDataUrl,
       memory,
       knowledge,
-      programHeader
+      programHeader,
+      operatorContext
     });
 
     res.json(result);

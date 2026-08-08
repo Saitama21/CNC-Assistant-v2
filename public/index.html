@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v13.css" />
+  <link rel="stylesheet" href="/styles-v14.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -106,9 +106,9 @@
       <header class="shopturn-header">
         <div>
           <div class="eyebrow">Drawing → Geometry → Setups → SINUMERIK Operate / ShopTurn</div>
-          <h2 id="shopTurnTitle">ShopTurn v12</h2>
+          <h2 id="shopTurnTitle">ShopTurn v14 · Operator Workflow</h2>
           <p class="shopturn-help">
-            Сначала задай фактическую заготовку, если она известна. Чертёж отдельно превращается в проверяемую геометрию готовой детали.
+            Ассистент ведёт по этапам: фактическая заготовка → чертёж → геометрия → установки/Z0 → инструмент → технология → проверка → симуляция.
           </p>
         </div>
         <button id="closeShopTurnButton" class="icon-button" aria-label="Закрыть ShopTurn">×</button>
@@ -120,7 +120,7 @@
           <span>＋ Чертёж</span>
         </label>
         <input id="shopTurnPrompt" class="shopturn-prompt" placeholder="Например: Z0 на переднем торце. X в диаметрах. Построй все установки." />
-        <button id="generateShopTurnButton" class="primary-button">Разобрать + собрать</button>
+        <button id="generateShopTurnButton" class="primary-button">Разобрать чертёж</button>
         <button id="saveShopTurnButton" class="secondary-button">Сохранить</button>
       </div>
 
@@ -130,6 +130,39 @@
       </div>
 
       <div id="shopTurnGenerationStatus" class="shopturn-generation-status">Готов к разбору чертежа.</div>
+
+
+      <section class="operator-workflow-shell">
+        <div class="operator-workflow-steps" id="operatorWorkflowSteps" aria-label="Этапы подготовки ShopTurn"></div>
+
+        <div class="operator-coach">
+          <div class="operator-coach-main">
+            <div class="operator-coach-kicker">CNC AI · следующий обязательный шаг</div>
+            <div class="operator-coach-title" id="operatorCoachTitle">Проверяю проект…</div>
+            <div class="operator-coach-text" id="operatorCoachText"></div>
+            <div class="operator-coach-question" id="operatorCoachQuestion"></div>
+          </div>
+
+          <div class="operator-coach-side">
+            <div id="operatorProjectState" class="operator-project-state draft">Черновик</div>
+            <div class="operator-state-legend">
+              <span><i class="field-dot confirmed"></i> подтверждено</span>
+              <span><i class="field-dot calculated"></i> расчётное</span>
+              <span><i class="field-dot check"></i> проверить</span>
+              <span><i class="field-dot conflict"></i> конфликт</span>
+            </div>
+          </div>
+
+          <div class="operator-coach-actions">
+            <button id="operatorPrevStep" class="secondary-button" type="button">← Назад</button>
+            <button id="operatorOpenStep" class="secondary-button" type="button">Открыть этап</button>
+            <button id="operatorConfirmStep" class="primary-button" type="button">Подтвердить этап</button>
+            <button id="operatorNextStep" class="secondary-button" type="button">Далее →</button>
+          </div>
+        </div>
+
+        <div id="operatorStepPanel" class="operator-step-panel hidden"></div>
+      </section>
 
       <div class="shopturn-layout">
         <aside class="shopturn-sidebar">
@@ -317,6 +350,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v13.js" defer></script>
+  <script src="/app-v14.js" defer></script>
 </body>
 </html>
