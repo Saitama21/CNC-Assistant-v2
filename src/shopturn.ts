@@ -9,9 +9,52 @@ const apiKey = process.env.OPENAI_API_KEY;
 const SMART_MODEL = process.env.SMART_MODEL || "gpt-5.6-sol";
 const SUPERVISOR_MODEL = process.env.SUPERVISOR_MODEL || SMART_MODEL;
 
-const client = new OpenAI({
-  apiKey: apiKey || "missing-key"
-});
+const client = new OpenAI({ apiKey: apiKey || "missing-key" });
+
+type Knowledge = {
+  tools?: Array<any>;
+  materials?: Array<any>;
+  mCodes?: Array<any>;
+  journal?: Array<any>;
+};
+
+export type GeometryFeature = {
+  id: string;
+  type: "cylinder" | "step" | "hole" | "thread" | "chamfer" | "radius" | "face" | "other";
+  side: "front" | "back" | "axial" | "unknown";
+  diameter: number | null;
+  innerDiameter: number | null;
+  length: number | null;
+  fromZ: number | null;
+  toZ: number | null;
+  threadSize: string;
+  pitch: number | null;
+  value: number | null;
+  quantity: number | null;
+  confidence: "high" | "medium" | "low";
+  sourceText: string;
+  note: string;
+};
+
+export type GeometrySetupHint = {
+  id: string;
+  title: string;
+  orientation: "front" | "back" | "unknown";
+  z0Reference: "front_face" | "back_face" | "custom" | "unknown";
+  reason: string;
+};
+
+export type DrawingGeometry = {
+  partName: string;
+  unit: "mm" | "inch";
+  stockOuterDiameter: number | null;
+  stockInnerDiameter: number | null;
+  totalLength: number | null;
+  features: GeometryFeature[];
+  setupsRequired: number | null;
+  setupHints: GeometrySetupHint[];
+  warnings: string[];
+};
 
 export type ShopTurnContourElement = {
   kind: "lineX" | "lineZ" | "lineDiag" | "arc";
@@ -23,7 +66,7 @@ export type ShopTurnContourElement = {
 };
 
 export type ShopTurnOperation = {
-  type: "turning" | "thread" | "cutoff" | "contour";
+  type: "turning" | "threadTurning" | "cutoff" | "contour" | "drilling" | "tapping";
   title: string;
   tool: string;
   edge: number | null;
@@ -41,7 +84,6 @@ export type ShopTurnOperation = {
   UZ: number | null;
   FS: number | null;
   R: number | null;
-
   FR: number | null;
   SR: number | null;
   X2: number | null;
@@ -65,294 +107,438 @@ export type ShopTurnOperation = {
   contourTransitionValue: number | null;
   contourElements: ShopTurnContourElement[];
 
+  drillSurface: "faceC" | "faceY" | "sideC" | "sideY" | "faceB" | "unknown";
+  drillPosition: "front" | "back" | "outside" | "inside" | "unknown";
+  drillDepthReference: "tip" | "shank" | "unknown";
+  pilotBore: boolean | null;
+  ZA: number | null;
+  FA: number | null;
+  throughDrilling: boolean | null;
+  ZD: number | null;
+  FD: number | null;
+  DT: number | null;
+
+  tapChuckMode: "compensating" | "rigid" | "unknown";
+  tapSensorMode: "sensor" | "no_sensor" | "unknown";
+  tapProcess: "one_pass" | "chip_break" | "chip_removal" | "unknown";
+  tapRetractMode: "manual" | "automatic" | "unknown";
+  V2: number | null;
+  VR: number | null;
+
   confidence: "high" | "medium" | "low";
   note: string;
 };
 
+export type ShopTurnSetup = {
+  id: string;
+  title: string;
+  orientation: "front" | "back" | "unknown";
+  workOffset: string;
+  zZeroReference: "front_face" | "back_face" | "custom" | "unknown";
+  zZeroNote: string;
+  ZA: number | null;
+  ZI: number | null;
+  XRA: number | null;
+  ZRA: number | null;
+  note: string;
+  operations: ShopTurnOperation[];
+};
+
 export type ShopTurnPlan = {
+  geometry: DrawingGeometry;
   program: {
     name: string;
     unit: "mm" | "inch";
-    workOffset: string;
     stockShape: "cylinder" | "tube" | "unknown";
     XA: number | null;
     XI: number | null;
-    ZA: number | null;
-    ZI: number | null;
     ZB: number | null;
-    XRA: number | null;
-    ZRA: number | null;
     SC: number | null;
     Smax: number | null;
   };
-  operations: ShopTurnOperation[];
+  setups: ShopTurnSetup[];
   warnings: string[];
   assumptions: string[];
 };
 
-type Knowledge = {
-  tools?: Array<any>;
-  materials?: Array<any>;
-  mCodes?: Array<any>;
-  journal?: Array<any>;
-};
+const nullableNumber = { anyOf: [{ type: "number" }, { type: "null" }] } as const;
+const nullableBoolean = { anyOf: [{ type: "boolean" }, { type: "null" }] } as const;
 
-const nullableNumber = {
-  anyOf: [
-    { type: "number" },
-    { type: "null" }
-  ]
-};
-
-const shopTurnSchema = {
+const geometrySchema = {
   type: "object",
   additionalProperties: false,
-  required: ["program", "operations", "warnings", "assumptions"],
+  required: [
+    "partName", "unit", "stockOuterDiameter", "stockInnerDiameter", "totalLength",
+    "features", "setupsRequired", "setupHints", "warnings"
+  ],
   properties: {
-    program: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "name", "unit", "workOffset", "stockShape",
-        "XA", "XI", "ZA", "ZI", "ZB", "XRA", "ZRA", "SC", "Smax"
-      ],
-      properties: {
-        name: { type: "string" },
-        unit: { type: "string", enum: ["mm", "inch"] },
-        workOffset: { type: "string" },
-        stockShape: { type: "string", enum: ["cylinder", "tube", "unknown"] },
-        XA: nullableNumber,
-        XI: nullableNumber,
-        ZA: nullableNumber,
-        ZI: nullableNumber,
-        ZB: nullableNumber,
-        XRA: nullableNumber,
-        ZRA: nullableNumber,
-        SC: nullableNumber,
-        Smax: nullableNumber
-      }
-    },
-    operations: {
+    partName: { type: "string" },
+    unit: { type: "string", enum: ["mm", "inch"] },
+    stockOuterDiameter: nullableNumber,
+    stockInnerDiameter: nullableNumber,
+    totalLength: nullableNumber,
+    features: {
       type: "array",
-      maxItems: 30,
+      maxItems: 80,
       items: {
         type: "object",
         additionalProperties: false,
         required: [
-          "type", "title", "tool", "edge", "feed", "speedMode", "speed", "machining",
-          "X0", "Z0", "X1", "Z1", "D", "UX", "UZ", "FS", "R",
-          "FR", "SR", "X2",
-          "threadTable", "threadSize", "P", "G", "threadSide",
-          "LW", "LW2", "LR", "H1", "DP", "alphaP",
-          "contourName", "contourStartX", "contourStartZ",
-          "contourTransitionType", "contourTransitionValue", "contourElements",
-          "confidence", "note"
+          "id", "type", "side", "diameter", "innerDiameter", "length", "fromZ", "toZ",
+          "threadSize", "pitch", "value", "quantity", "confidence", "sourceText", "note"
         ],
         properties: {
-          type: { type: "string", enum: ["turning", "thread", "cutoff", "contour"] },
-          title: { type: "string" },
-          tool: { type: "string" },
-          edge: nullableNumber,
-          feed: nullableNumber,
-          speedMode: { type: "string", enum: ["S", "V"] },
-          speed: nullableNumber,
-          machining: { type: "string", enum: ["rough", "finish", "combined", "none"] },
-
-          X0: nullableNumber,
-          Z0: nullableNumber,
-          X1: nullableNumber,
-          Z1: nullableNumber,
-          D: nullableNumber,
-          UX: nullableNumber,
-          UZ: nullableNumber,
-          FS: nullableNumber,
-          R: nullableNumber,
-
-          FR: nullableNumber,
-          SR: nullableNumber,
-          X2: nullableNumber,
-
-          threadTable: {
-            type: "string",
-            enum: ["none", "ISO_metric", "BSW", "BSP", "UNC"]
-          },
+          id: { type: "string" },
+          type: { type: "string", enum: ["cylinder", "step", "hole", "thread", "chamfer", "radius", "face", "other"] },
+          side: { type: "string", enum: ["front", "back", "axial", "unknown"] },
+          diameter: nullableNumber,
+          innerDiameter: nullableNumber,
+          length: nullableNumber,
+          fromZ: nullableNumber,
+          toZ: nullableNumber,
           threadSize: { type: "string" },
-          P: nullableNumber,
-          G: nullableNumber,
-          threadSide: {
-            type: "string",
-            enum: ["external", "internal", "none"]
-          },
-          LW: nullableNumber,
-          LW2: nullableNumber,
-          LR: nullableNumber,
-          H1: nullableNumber,
-          DP: nullableNumber,
-          alphaP: nullableNumber,
-
-          contourName: { type: "string" },
-          contourStartX: nullableNumber,
-          contourStartZ: nullableNumber,
-          contourTransitionType: {
-            type: "string",
-            enum: ["none", "radius", "chamfer"]
-          },
-          contourTransitionValue: nullableNumber,
-          contourElements: {
-            type: "array",
-            maxItems: 80,
-            items: {
-              type: "object",
-              additionalProperties: false,
-              required: [
-                "kind", "x", "z", "radius", "transitionType", "transitionValue"
-              ],
-              properties: {
-                kind: {
-                  type: "string",
-                  enum: ["lineX", "lineZ", "lineDiag", "arc"]
-                },
-                x: nullableNumber,
-                z: nullableNumber,
-                radius: nullableNumber,
-                transitionType: {
-                  type: "string",
-                  enum: ["none", "radius", "chamfer"]
-                },
-                transitionValue: nullableNumber
-              }
-            }
-          },
-
-          confidence: {
-            type: "string",
-            enum: ["high", "medium", "low"]
-          },
+          pitch: nullableNumber,
+          value: nullableNumber,
+          quantity: nullableNumber,
+          confidence: { type: "string", enum: ["high", "medium", "low"] },
+          sourceText: { type: "string" },
           note: { type: "string" }
         }
       }
     },
-    warnings: {
+    setupsRequired: nullableNumber,
+    setupHints: {
       type: "array",
-      maxItems: 30,
-      items: { type: "string" }
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "title", "orientation", "z0Reference", "reason"],
+        properties: {
+          id: { type: "string" },
+          title: { type: "string" },
+          orientation: { type: "string", enum: ["front", "back", "unknown"] },
+          z0Reference: { type: "string", enum: ["front_face", "back_face", "custom", "unknown"] },
+          reason: { type: "string" }
+        }
+      }
     },
-    assumptions: {
-      type: "array",
-      maxItems: 30,
-      items: { type: "string" }
-    }
+    warnings: { type: "array", maxItems: 40, items: { type: "string" } }
   }
 } as const;
 
-const manualRules = `
-Ты формируешь не текстовый ответ, а структуру для визуального редактора ShopTurn
-SINUMERIK Operate 840D sl/828D V4.8 SP3.
+const operationProperties = {
+  type: { type: "string", enum: ["turning", "threadTurning", "cutoff", "contour", "drilling", "tapping"] },
+  title: { type: "string" }, tool: { type: "string" }, edge: nullableNumber,
+  feed: nullableNumber, speedMode: { type: "string", enum: ["S", "V"] }, speed: nullableNumber,
+  machining: { type: "string", enum: ["rough", "finish", "combined", "none"] },
+  X0: nullableNumber, Z0: nullableNumber, X1: nullableNumber, Z1: nullableNumber,
+  D: nullableNumber, UX: nullableNumber, UZ: nullableNumber, FS: nullableNumber, R: nullableNumber,
+  FR: nullableNumber, SR: nullableNumber, X2: nullableNumber,
+  threadTable: { type: "string", enum: ["none", "ISO_metric", "BSW", "BSP", "UNC"] },
+  threadSize: { type: "string" }, P: nullableNumber, G: nullableNumber,
+  threadSide: { type: "string", enum: ["external", "internal", "none"] },
+  LW: nullableNumber, LW2: nullableNumber, LR: nullableNumber, H1: nullableNumber,
+  DP: nullableNumber, alphaP: nullableNumber,
+  contourName: { type: "string" }, contourStartX: nullableNumber, contourStartZ: nullableNumber,
+  contourTransitionType: { type: "string", enum: ["none", "radius", "chamfer"] },
+  contourTransitionValue: nullableNumber,
+  contourElements: {
+    type: "array", maxItems: 80,
+    items: {
+      type: "object", additionalProperties: false,
+      required: ["kind", "x", "z", "radius", "transitionType", "transitionValue"],
+      properties: {
+        kind: { type: "string", enum: ["lineX", "lineZ", "lineDiag", "arc"] },
+        x: nullableNumber, z: nullableNumber, radius: nullableNumber,
+        transitionType: { type: "string", enum: ["none", "radius", "chamfer"] },
+        transitionValue: nullableNumber
+      }
+    }
+  },
+  drillSurface: { type: "string", enum: ["faceC", "faceY", "sideC", "sideY", "faceB", "unknown"] },
+  drillPosition: { type: "string", enum: ["front", "back", "outside", "inside", "unknown"] },
+  drillDepthReference: { type: "string", enum: ["tip", "shank", "unknown"] },
+  pilotBore: nullableBoolean, ZA: nullableNumber, FA: nullableNumber,
+  throughDrilling: nullableBoolean, ZD: nullableNumber, FD: nullableNumber, DT: nullableNumber,
+  tapChuckMode: { type: "string", enum: ["compensating", "rigid", "unknown"] },
+  tapSensorMode: { type: "string", enum: ["sensor", "no_sensor", "unknown"] },
+  tapProcess: { type: "string", enum: ["one_pass", "chip_break", "chip_removal", "unknown"] },
+  tapRetractMode: { type: "string", enum: ["manual", "automatic", "unknown"] },
+  V2: nullableNumber, VR: nullableNumber,
+  confidence: { type: "string", enum: ["high", "medium", "low"] }, note: { type: "string" }
+} as const;
 
-Поддерживаемые в v11 операции:
-1) turning — "Обработка резаньем" / CYCLE951.
-   ShopTurn-поля: T, D, F, S/V; режим rough/finish; X0, Z0, X1, Z1;
-   для черновой D, UX, UZ; при необходимости FS/R.
-2) thread — "Нарезание резьбы резцом" / CYCLE99.
-   ShopTurn-поля: T, D, S/V; таблица резьбы, размер (например M12), P,
-   наружная/внутренняя, X0, Z0, Z1, LW/LW2, LR, H1, DP или alphaP.
-3) cutoff — "Отрез" / CYCLE92.
-   ShopTurn-поля: T, D, F, S/V, X0, Z0, FS или R, X1,
-   FR, SR, X2.
-4) contour — контурная обточка.
-   Сначала имя и старт X/Z (X всегда диаметр), затем элементы:
-   lineX, lineZ, lineDiag, arc. Между элементами возможен радиус или фаска.
+const operationRequired = Object.keys(operationProperties);
 
-Заголовок ShopTurn:
-- unit: mm/inch;
-- workOffset;
-- заготовка cylinder/tube;
-- XA наружный диаметр;
-- XI внутренний диаметр для трубы;
-- ZA начальный Z; ZI конечный Z; ZB размер под обработку;
-- XRA/ZRA плоскости отвода;
-- SC безопасное расстояние;
-- Smax ограничение частоты вращения.
+const planSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["program", "setups", "warnings", "assumptions"],
+  properties: {
+    program: {
+      type: "object", additionalProperties: false,
+      required: ["name", "unit", "stockShape", "XA", "XI", "ZB", "SC", "Smax"],
+      properties: {
+        name: { type: "string" }, unit: { type: "string", enum: ["mm", "inch"] },
+        stockShape: { type: "string", enum: ["cylinder", "tube", "unknown"] },
+        XA: nullableNumber, XI: nullableNumber, ZB: nullableNumber, SC: nullableNumber, Smax: nullableNumber
+      }
+    },
+    setups: {
+      type: "array", maxItems: 8,
+      items: {
+        type: "object", additionalProperties: false,
+        required: ["id", "title", "orientation", "workOffset", "zZeroReference", "zZeroNote", "ZA", "ZI", "XRA", "ZRA", "note", "operations"],
+        properties: {
+          id: { type: "string" }, title: { type: "string" },
+          orientation: { type: "string", enum: ["front", "back", "unknown"] },
+          workOffset: { type: "string" },
+          zZeroReference: { type: "string", enum: ["front_face", "back_face", "custom", "unknown"] },
+          zZeroNote: { type: "string" }, ZA: nullableNumber, ZI: nullableNumber, XRA: nullableNumber, ZRA: nullableNumber,
+          note: { type: "string" },
+          operations: {
+            type: "array", maxItems: 40,
+            items: { type: "object", additionalProperties: false, required: operationRequired, properties: operationProperties }
+          }
+        }
+      }
+    },
+    warnings: { type: "array", maxItems: 50, items: { type: "string" } },
+    assumptions: { type: "array", maxItems: 50, items: { type: "string" } }
+  }
+} as const;
 
-Критические правила:
-- X в токарной геометрии задавай как диаметр.
-- Не выдумывай размеры, которых нет на чертеже/фото/тексте.
-- Не угадывай OEM M-коды.
-- Если размер или режим неизвестен, ставь null и добавляй предупреждение.
-- Если фаска/радиус не читается однозначно, не добавляй его в геометрию.
-- Режимы резания из журнала прошлых деталей — только ориентир, а не универсальная истина.
-- Сначала геометрия, затем технология. Не подменяй отсутствующие размеры "типичными".
+const geometryRules = `
+Ты — модуль чтения машиностроительного чертежа для токарной детали.
+Твоя задача — НЕ строить программу, а извлечь только геометрию, которая реально поддерживается изображением/текстом.
+
+Правила:
+- Чертёж может быть повернут. Сначала мысленно нормализуй ориентацию главного вида.
+- Игнорируй числа из основной надписи, рамки, штампа, номера документа, масштаба и технических примечаний, если они не привязаны размерной линией к детали.
+- Диаметр фиксируй только когда видно Ø/диаметр либо геометрия однозначно является диаметральной.
+- Для резьбы сохраняй обозначение (например M12) и шаг только если он указан или однозначно следует из таблицы резьбы; не угадывай глубину.
+- Фаску/радиус сохраняй только если ясно, к какой кромке относится размер.
+- Если деталь требует переворота/второй установки из-за обработки с противоположного торца — добавь setupHint.
+- Никаких режимов S/F/Vc и никакого ShopTurn на этом этапе.
+- Не заполняй неизвестное типичным значением. Используй null и предупреждение.
+`.trim();
+
+const planRules = `
+Ты — технологический модуль Visual ShopTurn для SINUMERIK Operate 840D sl/828D V4.8 SP3.
+Получаешь уже извлечённую и провалидированную геометрию. Строй ShopTurn ТОЛЬКО из неё и пользовательского контекста.
+
+В v12 поддерживаются:
+1) turning — CYCLE951 «Обработка резаньем»: T,D,F,S/V, rough/finish, X0,Z0,X1,Z1,D,UX,UZ,FS/R.
+2) threadTurning — CYCLE99 резьба резцом: таблица/размер/P, наружная/внутренняя, X0,Z0,Z1,LW/LW2,LR,H1,DP/alphaP.
+3) cutoff — CYCLE92: T,D,F,S/V,X0,Z0,FS/R,X1,FR,SR,X2.
+4) contour — контурная обточка: старт X/Z и элементы lineX/lineZ/lineDiag/arc; X всегда диаметр.
+5) drilling — CYCLE82: T,D,F,S/V; поверхность/положение ShopTurn; глубина по острию/хвостовику; Z1; засверловка ZA/FA; сквозное сверление ZD/FD; DT.
+6) tapping — CYCLE84/CYCLE840 «Нарезание внутренней резьбы»: T,D,S/V; режим компенсирующего патрона; sensor/no_sensor; SR или VR для отвода; поверхность/положение; Z1/X1; таблица/размер/P; one_pass/chip_break/chip_removal; D,V2,DT.
+
+Установки:
+- Каждая физическая установка детали имеет отдельный setup и отдельный Z0/workOffset.
+- Никогда не переноси координаты Z одной установки в другую как будто это одна система координат.
+- Если рабочее смещение неизвестно — оставляй пустую строку и warning.
+- Если противоположный торец требует переворота, создай второй setup.
+
+Критически:
+- X — диаметр.
+- Не придумывай размеры/глубины отверстия/резьбы.
+- Для внутренней резьбы Mxx, если нужен предварительный диаметр, но он не дан/не вычислен уверенно, drilling.Z1/диаметр оставляй null и предупреждай.
+- Внутренняя M-резьба не равна CYCLE99 автоматически: если предполагается метчик, используй tapping; CYCLE99 оставляй для резьбы резцом.
+- OEM M-коды не угадывать.
+- Старый журнал режимов — только ориентир.
 `.trim();
 
 function inputFor(prompt: string, imageDataUrl?: string | null) {
   if (imageDataUrl) {
-    return [{
-      role: "user",
-      content: [
-        { type: "input_text", text: prompt },
-        { type: "input_image", image_url: imageDataUrl }
-      ]
-    }] as any;
+    return [{ role: "user", content: [{ type: "input_text", text: prompt }, { type: "input_image", image_url: imageDataUrl }] }] as any;
   }
-
-  return [{
-    role: "user",
-    content: prompt
-  }] as any;
+  return [{ role: "user", content: prompt }] as any;
 }
 
-function parsePlan(text: string): ShopTurnPlan {
-  const cleaned = text
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "");
-
-  return JSON.parse(cleaned) as ShopTurnPlan;
+function parseJson<T>(text: string): T {
+  const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+  return JSON.parse(cleaned) as T;
 }
 
-async function createStructuredPlan(
-  model: string,
-  instructions: string,
-  prompt: string,
-  imageDataUrl?: string | null
-): Promise<ShopTurnPlan> {
+async function structured<T>(model: string, instructions: string, prompt: string, schemaName: string, schema: any, imageDataUrl?: string | null): Promise<T> {
   try {
     const response = await client.responses.create({
       model,
       instructions,
       input: inputFor(prompt, imageDataUrl),
-      text: {
-        format: {
-          type: "json_schema",
-          name: "shopturn_plan",
-          strict: true,
-          schema: shopTurnSchema as any
-        }
-      } as any,
+      text: { format: { type: "json_schema", name: schemaName, strict: true, schema } } as any,
       store: false
     } as any);
-
-    return parsePlan(response.output_text || "");
-  } catch (structuredError) {
-    console.warn("Structured output fallback:", structuredError);
-
+    return parseJson<T>(response.output_text || "");
+  } catch (error) {
+    console.warn(`${schemaName} structured-output fallback:`, error);
     const response = await client.responses.create({
       model,
-      instructions:
-        instructions +
-        "\n\nВерни ТОЛЬКО валидный JSON без markdown. JSON обязан соответствовать заданной структуре.",
-      input: inputFor(
-        prompt +
-        "\n\nПоля JSON: program{name,unit,workOffset,stockShape,XA,XI,ZA,ZI,ZB,XRA,ZRA,SC,Smax}, " +
-        "operations[] с типами turning/thread/cutoff/contour и всеми полями схемы v11, warnings[], assumptions[].",
-        imageDataUrl
-      ),
+      instructions: instructions + "\n\nВерни только валидный JSON без markdown.",
+      input: inputFor(prompt, imageDataUrl),
       store: false
     });
-
-    return parsePlan(response.output_text || "");
+    return parseJson<T>(response.output_text || "");
   }
+}
+
+function finiteOrNull(value: any) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function median(values: number[]) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function validateGeometry(raw: DrawingGeometry): DrawingGeometry {
+  const geometry: DrawingGeometry = JSON.parse(JSON.stringify(raw));
+  const warnings = [...(geometry.warnings || [])];
+
+  geometry.stockOuterDiameter = finiteOrNull(geometry.stockOuterDiameter);
+  geometry.stockInnerDiameter = finiteOrNull(geometry.stockInnerDiameter);
+  geometry.totalLength = finiteOrNull(geometry.totalLength);
+  geometry.setupsRequired = finiteOrNull(geometry.setupsRequired);
+
+  const dimensions: number[] = [];
+  const push = (v: any) => {
+    const n = finiteOrNull(v);
+    if (n !== null && Math.abs(n) > 0 && Math.abs(n) < 100000) dimensions.push(Math.abs(n));
+  };
+  push(geometry.stockOuterDiameter); push(geometry.stockInnerDiameter); push(geometry.totalLength);
+  for (const f of geometry.features || []) {
+    push(f.diameter); push(f.innerDiameter); push(f.length); push(f.fromZ); push(f.toZ); push(f.pitch); push(f.value);
+  }
+
+  const med = median(dimensions.filter((v) => v > 0.01));
+  const grossOutlier = med ? Math.max(500, med * 20) : 5000;
+
+  if (geometry.totalLength !== null && Math.abs(geometry.totalLength) > grossOutlier) {
+    warnings.push(`Общая длина ${geometry.totalLength} отброшена валидатором как выброс относительно остальных размеров.`);
+    geometry.totalLength = null;
+  }
+  if (geometry.stockOuterDiameter !== null && Math.abs(geometry.stockOuterDiameter) > grossOutlier) {
+    warnings.push(`Диаметр заготовки ${geometry.stockOuterDiameter} отброшен как вероятное число из рамки/штампа.`);
+    geometry.stockOuterDiameter = null;
+  }
+
+  geometry.features = (geometry.features || []).map((f, index) => {
+    const feature = { ...f, id: f.id || `F${index + 1}` };
+    for (const key of ["diameter", "innerDiameter", "length", "fromZ", "toZ", "pitch", "value", "quantity"] as const) {
+      (feature as any)[key] = finiteOrNull((feature as any)[key]);
+    }
+    for (const key of ["diameter", "innerDiameter", "length", "fromZ", "toZ", "value"] as const) {
+      const n = (feature as any)[key] as number | null;
+      if (n !== null && Math.abs(n) > grossOutlier) {
+        warnings.push(`${feature.id}: ${key}=${n} отброшено как статистический выброс/возможное число из основной надписи.`);
+        (feature as any)[key] = null;
+        feature.confidence = "low";
+      }
+    }
+    return feature;
+  });
+
+  geometry.warnings = Array.from(new Set(warnings)).slice(0, 60);
+  return geometry;
+}
+
+function zLimit(geometry: DrawingGeometry) {
+  if (geometry.totalLength && geometry.totalLength > 0) return Math.max(geometry.totalLength * 3, geometry.totalLength + 20);
+  const lengths = geometry.features.flatMap((f) => [f.length, f.fromZ, f.toZ]).filter((v): v is number => typeof v === "number" && Number.isFinite(v)).map(Math.abs);
+  const med = median(lengths);
+  return med ? Math.max(200, med * 20) : 5000;
+}
+
+function xLimit(geometry: DrawingGeometry) {
+  if (geometry.stockOuterDiameter && geometry.stockOuterDiameter > 0) return Math.max(geometry.stockOuterDiameter * 2.5, geometry.stockOuterDiameter + 20);
+  const ds = geometry.features.flatMap((f) => [f.diameter, f.innerDiameter]).filter((v): v is number => typeof v === "number" && Number.isFinite(v)).map(Math.abs);
+  const med = median(ds);
+  return med ? Math.max(200, med * 10) : 5000;
+}
+
+function validatePlan(plan: Omit<ShopTurnPlan, "geometry">, geometry: DrawingGeometry): ShopTurnPlan {
+  const raw: any = JSON.parse(JSON.stringify(plan || {}));
+  const result: ShopTurnPlan = {
+    program: {
+      name: String(raw.program?.name || geometry.partName || "SHOPTURN_1"),
+      unit: raw.program?.unit === "inch" ? "inch" : "mm",
+      stockShape: ["cylinder", "tube", "unknown"].includes(raw.program?.stockShape) ? raw.program.stockShape : "unknown",
+      XA: finiteOrNull(raw.program?.XA),
+      XI: finiteOrNull(raw.program?.XI),
+      ZB: finiteOrNull(raw.program?.ZB),
+      SC: finiteOrNull(raw.program?.SC),
+      Smax: finiteOrNull(raw.program?.Smax)
+    },
+    setups: Array.isArray(raw.setups) ? raw.setups : [],
+    warnings: Array.isArray(raw.warnings) ? raw.warnings.map(String) : [],
+    assumptions: Array.isArray(raw.assumptions) ? raw.assumptions.map(String) : [],
+    geometry
+  };
+  const warnings = [...geometry.warnings, ...(result.warnings || [])];
+  const maxZ = zLimit(geometry);
+  const maxX = xLimit(geometry);
+
+  result.program.XA = finiteOrNull(result.program.XA);
+  result.program.XI = finiteOrNull(result.program.XI);
+  result.program.ZB = finiteOrNull(result.program.ZB);
+  result.program.SC = finiteOrNull(result.program.SC);
+  result.program.Smax = finiteOrNull(result.program.Smax);
+
+  if (geometry.stockOuterDiameter && result.program.XA && Math.abs(result.program.XA - geometry.stockOuterDiameter) > Math.max(5, geometry.stockOuterDiameter * 0.35)) {
+    warnings.push(`XA=${result.program.XA} не согласуется с извлечённым Ø заготовки ${geometry.stockOuterDiameter}; XA заменён на извлечённое значение.`);
+    result.program.XA = geometry.stockOuterDiameter;
+  }
+
+  const checkZ = (holder: any, key: string, context: string) => {
+    const n = finiteOrNull(holder[key]);
+    if (n !== null && Math.abs(n) > maxZ) {
+      warnings.push(`${context}: ${key}=${n} отброшено: превышает проверочный диапазон геометрии (±${maxZ.toFixed(1)}).`);
+      holder[key] = null;
+    } else holder[key] = n;
+  };
+  const checkX = (holder: any, key: string, context: string) => {
+    const n = finiteOrNull(holder[key]);
+    if (n !== null && Math.abs(n) > maxX) {
+      warnings.push(`${context}: ${key}=${n} отброшено: не согласуется с диаметральным масштабом детали.`);
+      holder[key] = null;
+    } else holder[key] = n;
+  };
+
+  result.setups = (result.setups || []).map((setup, si) => {
+    const s: any = setup;
+    ["ZA", "ZI", "ZRA"].forEach((k) => checkZ(s, k, `Установка ${si + 1}`));
+    checkX(s, "XRA", `Установка ${si + 1}`);
+    s.operations = (s.operations || []).map((op: any, oi: number) => {
+      ["Z0", "Z1", "ZA", "ZD", "contourStartZ"].forEach((k) => checkZ(op, k, `Установка ${si + 1}, кадр ${oi + 1}`));
+      ["X0", "X1", "X2", "contourStartX"].forEach((k) => checkX(op, k, `Установка ${si + 1}, кадр ${oi + 1}`));
+      if (Array.isArray(op.contourElements)) {
+        op.contourElements.forEach((el: any, ei: number) => {
+          checkX(el, "x", `Контур ${si + 1}.${oi + 1}, элемент ${ei + 1}`);
+          checkZ(el, "z", `Контур ${si + 1}.${oi + 1}, элемент ${ei + 1}`);
+        });
+      }
+      return op;
+    });
+    return s;
+  });
+
+  if (!result.setups.length) {
+    warnings.push("Модель не сформировала ни одной установки; добавлена пустая установка для ручного заполнения.");
+    result.setups = [{
+      id: "SETUP1", title: "Установка 1", orientation: "unknown", workOffset: "",
+      zZeroReference: "unknown", zZeroNote: "", ZA: null, ZI: null, XRA: null, ZRA: null,
+      note: "", operations: []
+    }];
+  }
+
+  result.warnings = Array.from(new Set(warnings)).slice(0, 80);
+  return result;
 }
 
 export async function generateShopTurnPlan(args: {
@@ -361,47 +547,79 @@ export async function generateShopTurnPlan(args: {
   memory?: ProjectMemory;
   knowledge?: Knowledge;
 }) {
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
   const memoryPrompt = buildProjectMemoryPrompt(args.memory);
   const knowledgePrompt = buildStructuredKnowledgePrompt(args.knowledge);
 
-  const instructions = [
-    manualRules,
-    memoryPrompt,
-    knowledgePrompt
-  ].filter(Boolean).join("\n\n");
-
-  let plan = await createStructuredPlan(
+  const geometryRaw = await structured<DrawingGeometry>(
     SMART_MODEL,
-    instructions,
-    args.prompt || "Составь ShopTurn по изображению.",
+    [geometryRules, memoryPrompt].filter(Boolean).join("\n\n"),
+    (args.prompt || "Разбери геометрию детали по чертежу.") + "\n\nСначала извлеки геометрию. Не используй числа из рамки/штампа как размеры детали.",
+    "drawing_geometry_v12",
+    geometrySchema,
     args.imageDataUrl
   );
 
+  const geometry = validateGeometry(geometryRaw);
+
+  const planPrompt = `
+Пользовательская задача:
+${args.prompt || "Составь ShopTurn."}
+
+ПРОВЕРЕННАЯ ГЕОМЕТРИЯ ЧЕРТЕЖА:
+${JSON.stringify(geometry, null, 2)}
+
+Сформируй установки и технологические кадры. Если данных недостаточно, оставляй null и предупреждай.
+`.trim();
+
+  const planInstructions = [planRules, memoryPrompt, knowledgePrompt].filter(Boolean).join("\n\n");
+
+  let rawPlan = await structured<Omit<ShopTurnPlan, "geometry">>(
+    SMART_MODEL,
+    planInstructions,
+    planPrompt,
+    "shopturn_plan_v12",
+    planSchema,
+    args.imageDataUrl
+  );
+
+  let plan = validatePlan(rawPlan, geometry);
   const shouldSupervise = process.env.ENABLE_SUPERVISOR !== "false";
 
   if (shouldSupervise) {
-    const reviewPrompt =
-      "Проверь этот ShopTurn-план на внутренние противоречия и соответствие правилам полей. " +
-      "Исправь только то, что можно обосновать исходными данными. Не заполняй неизвестные размеры. " +
-      "Верни полный исправленный объект.\n\nПлан:\n" +
-      JSON.stringify(plan);
+    const supervisorPrompt = `
+Проверь ShopTurn-план против ПРОВЕРЕННОЙ ГЕОМЕТРИИ. Особенно:
+- не попали ли числа из основной надписи/рамки;
+- нет ли Z/X, несогласованных с масштабом детали;
+- действительно ли разделены физические установки;
+- для внутренней резьбы добавлено ли предварительное сверление, если оно необходимо;
+- неизвестные глубины остались null.
+Не выдумывай недостающие размеры. Верни полный исправленный план без поля geometry.
 
-    plan = await createStructuredPlan(
+ГЕОМЕТРИЯ:
+${JSON.stringify(geometry)}
+
+ПЛАН:
+${JSON.stringify({ program: plan.program, setups: plan.setups, warnings: plan.warnings, assumptions: plan.assumptions })}
+`.trim();
+
+    rawPlan = await structured<Omit<ShopTurnPlan, "geometry">>(
       SUPERVISOR_MODEL,
-      instructions,
-      reviewPrompt,
+      planInstructions,
+      supervisorPrompt,
+      "shopturn_plan_v12_supervised",
+      planSchema,
       args.imageDataUrl
     );
+    plan = validatePlan(rawPlan, geometry);
   }
 
   return {
     plan,
     model: SMART_MODEL,
     supervised: shouldSupervise,
-    supervisorModel: shouldSupervise ? SUPERVISOR_MODEL : null
+    supervisorModel: shouldSupervise ? SUPERVISOR_MODEL : null,
+    pipeline: "drawing→geometry→validation→setups→shopturn→supervisor"
   };
 }

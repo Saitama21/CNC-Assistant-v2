@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v11.css" />
+  <link rel="stylesheet" href="/styles-v12.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -105,10 +105,10 @@
     <section class="shopturn-panel" role="dialog" aria-modal="true" aria-labelledby="shopTurnTitle">
       <header class="shopturn-header">
         <div>
-          <div class="eyebrow">Visual editor · SINUMERIK Operate / ShopTurn</div>
-          <h2 id="shopTurnTitle">ShopTurn v11</h2>
+          <div class="eyebrow">Drawing → Geometry → Setups → SINUMERIK Operate / ShopTurn</div>
+          <h2 id="shopTurnTitle">ShopTurn v12</h2>
           <p class="shopturn-help">
-            Загрузи чертёж — GPT-5.6 Sol заполнит ячейки. Неопределённые размеры остаются пустыми.
+            Сначала чертёж превращается в проверяемую геометрию. Только затем заполняются ячейки ShopTurn по установкам.
           </p>
         </div>
         <button id="closeShopTurnButton" class="icon-button" aria-label="Закрыть ShopTurn">×</button>
@@ -119,8 +119,8 @@
           <input id="shopTurnImageInput" type="file" accept="image/*" hidden />
           <span>＋ Чертёж</span>
         </label>
-        <input id="shopTurnPrompt" class="shopturn-prompt" placeholder="Например: Сделай ShopTurn по чертежу. Z0 на переднем торце." />
-        <button id="generateShopTurnButton" class="primary-button">Собрать</button>
+        <input id="shopTurnPrompt" class="shopturn-prompt" placeholder="Например: Z0 на переднем торце. X в диаметрах. Построй все установки." />
+        <button id="generateShopTurnButton" class="primary-button">Разобрать + собрать</button>
         <button id="saveShopTurnButton" class="secondary-button">Сохранить</button>
       </div>
 
@@ -129,28 +129,32 @@
         <button id="removeShopTurnImage" class="remove-image" aria-label="Удалить чертёж">×</button>
       </div>
 
-      <div id="shopTurnGenerationStatus" class="shopturn-generation-status">
-        Готов к построению.
-      </div>
+      <div id="shopTurnGenerationStatus" class="shopturn-generation-status">Готов к разбору чертежа.</div>
 
       <div class="shopturn-layout">
         <aside class="shopturn-sidebar">
           <div class="shopturn-side-title">Проекты</div>
           <div id="shopTurnProjects" class="shopturn-project-list"></div>
-          <div class="shopturn-side-title">Технологическая карта</div>
-          <button id="shopTurnHeaderItem" class="shopturn-sequence-item active" data-op-index="-1">
-            Заголовок программы
-          </button>
-          <div id="shopTurnOperations" class="shopturn-operation-list"></div>
+
+          <div class="shopturn-side-title">Чертёж</div>
+          <button id="shopTurnGeometryItem" class="shopturn-sequence-item active">Геометрия детали</button>
+          <button id="shopTurnHeaderItem" class="shopturn-sequence-item">Заголовок программы</button>
+
+          <div class="shopturn-side-title">Установки</div>
+          <div id="shopTurnSetups" class="shopturn-operation-list"></div>
         </aside>
 
         <main class="shopturn-editor">
-          <section id="shopTurnHeaderForm" class="shopturn-form-section"></section>
+          <section id="shopTurnGeometryForm" class="shopturn-form-section"></section>
+          <section id="shopTurnHeaderForm" class="shopturn-form-section hidden"></section>
+          <section id="shopTurnSetupForm" class="shopturn-form-section hidden"></section>
           <section id="shopTurnOperationForm" class="shopturn-form-section hidden"></section>
         </main>
 
         <aside class="shopturn-review">
-          <div class="shopturn-side-title">Проверка</div>
+          <div class="shopturn-side-title">Валидация геометрии</div>
+          <div id="shopTurnGeometryWarnings" class="shopturn-warning-list"></div>
+          <div class="shopturn-side-title">Проверка ShopTurn</div>
           <div id="shopTurnWarnings" class="shopturn-warning-list"></div>
           <div class="shopturn-side-title">Допущения</div>
           <div id="shopTurnAssumptions" class="shopturn-warning-list"></div>
@@ -158,7 +162,6 @@
       </div>
     </section>
   </div>
-
 
   <div id="knowledgeModal" class="modal-backdrop hidden" aria-hidden="true">
     <section class="knowledge-panel" role="dialog" aria-modal="true" aria-labelledby="knowledgeTitle">
@@ -302,7 +305,7 @@
 
 
   <script>
-    // v11: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
+    // v12: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then((regs) => Promise.all(regs.map((r) => r.unregister())))
@@ -314,6 +317,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v11.js" defer></script>
+  <script src="/app-v12.js" defer></script>
 </body>
 </html>
