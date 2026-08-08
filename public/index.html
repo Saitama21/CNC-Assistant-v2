@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v20.css" />
+  <link rel="stylesheet" href="/styles-v21.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -30,6 +30,11 @@
           title="Переключить светлую/тёмную тему" aria-label="Переключить тему">
           <span id="themeToggleIcon" aria-hidden="true">☾</span>
           <span id="themeToggleText">Dark</span>
+        </button>
+        <button id="logoutButton" class="logout-button hidden" type="button"
+          title="Выйти из CNC AI" aria-label="Выйти">
+          <span aria-hidden="true">↪</span>
+          <span class="logout-label">Выйти</span>
         </button>
         <button id="memoryButton" class="memory-button" title="Память станка" aria-label="Память станка">
           <span class="memory-button-wide">Память</span><span class="memory-button-compact">П</span>
@@ -355,6 +360,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v20.js" defer></script>
+  <script src="/app-v21.js" defer></script>
 </body>
 </html>
