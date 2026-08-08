@@ -12,7 +12,7 @@ app.use(express.json({ limit: "15mb" }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const publicDir = path.resolve(__dirname, "..", "..", "public");
+const publicDir = path.resolve(__dirname, "..", "public");
 
 app.get("/api/health", (_req, res) => {
   res.json({
