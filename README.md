@@ -65,3 +65,21 @@ Desktop/iPad layout не меняется.
 - На iPhone она отображается компактной иконкой.
 - Logout вызывает уже существующий `/api/auth/logout`, удаляет HttpOnly session cookie и возвращает экран входа.
 - При возврате на экран входа закрываются Память, База и ShopTurn.
+
+
+## v22 — Multi Auto Adaptive
+Автоматическая компоновка теперь определяется по реальному viewport:
+- Phone <= 430 px
+- Compact <= 760 px
+- Tablet <= 1180 px
+- Desktop > 1180 px
+
+Также учитываются:
+- portrait / landscape;
+- touch / mouse;
+- dark / light;
+- visualViewport Safari;
+- safe-area iPhone.
+
+Память, База, ShopTurn, Login и главный чат используют одну адаптивную систему.
+В светлой Памяти исправлены тёмная шапка, белые подписи и неконтрастная кнопка.
