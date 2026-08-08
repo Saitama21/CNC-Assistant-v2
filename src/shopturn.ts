@@ -149,12 +149,33 @@ export type ShopTurnPlan = {
   program: {
     name: string;
     unit: "mm" | "inch";
-    stockShape: "cylinder" | "tube" | "unknown";
+    workOffset: string;
+    writeWorkOffset: boolean;
+    ZV: number | null;
+    stockShape: "cylinder" | "tube" | "polygon" | "centeredCuboid" | "none" | "unknown";
     XA: number | null;
     XI: number | null;
+    XIMode: "abs" | "inc";
+    ZA: number | null;
+    ZI: number | null;
+    ZIMode: "abs" | "inc";
     ZB: number | null;
+    ZBMode: "abs" | "inc";
+    retractMode: "simple" | "extended" | "all";
+    XRA: number | null;
+    XRAMode: "abs" | "inc";
+    XRI: number | null;
+    XRIMode: "abs" | "inc";
+    ZRA: number | null;
+    ZRAMode: "abs" | "inc";
+    ZRI: number | null;
+    toolChangeFrame: "WCS" | "MCS";
+    XT: number | null;
+    ZT: number | null;
     SC: number | null;
-    Smax: number | null;
+    S1: number | null;
+    machiningDirection: "up_cut" | "synchronous" | "unknown";
+    headerConfirmed: boolean;
   };
   setups: ShopTurnSetup[];
   warnings: string[];
@@ -278,11 +299,42 @@ const planSchema = {
   properties: {
     program: {
       type: "object", additionalProperties: false,
-      required: ["name", "unit", "stockShape", "XA", "XI", "ZB", "SC", "Smax"],
+      required: [
+        "name","unit","workOffset","writeWorkOffset","ZV","stockShape",
+        "XA","XI","XIMode","ZA","ZI","ZIMode","ZB","ZBMode",
+        "retractMode","XRA","XRAMode","XRI","XRIMode","ZRA","ZRAMode","ZRI",
+        "toolChangeFrame","XT","ZT","SC","S1","machiningDirection","headerConfirmed"
+      ],
       properties: {
-        name: { type: "string" }, unit: { type: "string", enum: ["mm", "inch"] },
-        stockShape: { type: "string", enum: ["cylinder", "tube", "unknown"] },
-        XA: nullableNumber, XI: nullableNumber, ZB: nullableNumber, SC: nullableNumber, Smax: nullableNumber
+        name: { type: "string" },
+        unit: { type: "string", enum: ["mm", "inch"] },
+        workOffset: { type: "string" },
+        writeWorkOffset: { type: "boolean" },
+        ZV: nullableNumber,
+        stockShape: { type: "string", enum: ["cylinder","tube","polygon","centeredCuboid","none","unknown"] },
+        XA: nullableNumber,
+        XI: nullableNumber,
+        XIMode: { type: "string", enum: ["abs","inc"] },
+        ZA: nullableNumber,
+        ZI: nullableNumber,
+        ZIMode: { type: "string", enum: ["abs","inc"] },
+        ZB: nullableNumber,
+        ZBMode: { type: "string", enum: ["abs","inc"] },
+        retractMode: { type: "string", enum: ["simple","extended","all"] },
+        XRA: nullableNumber,
+        XRAMode: { type: "string", enum: ["abs","inc"] },
+        XRI: nullableNumber,
+        XRIMode: { type: "string", enum: ["abs","inc"] },
+        ZRA: nullableNumber,
+        ZRAMode: { type: "string", enum: ["abs","inc"] },
+        ZRI: nullableNumber,
+        toolChangeFrame: { type: "string", enum: ["WCS","MCS"] },
+        XT: nullableNumber,
+        ZT: nullableNumber,
+        SC: nullableNumber,
+        S1: nullableNumber,
+        machiningDirection: { type: "string", enum: ["up_cut","synchronous","unknown"] },
+        headerConfirmed: { type: "boolean" }
       }
     },
     setups: {
@@ -328,13 +380,24 @@ const planRules = `
 Ты — технологический модуль Visual ShopTurn для SINUMERIK Operate 840D sl/828D V4.8 SP3.
 Получаешь уже извлечённую и провалидированную геометрию. Строй ShopTurn ТОЛЬКО из неё и пользовательского контекста.
 
-В v12 поддерживаются:
+В v13 поддерживаются:
 1) turning — CYCLE951 «Обработка резаньем»: T,D,F,S/V, rough/finish, X0,Z0,X1,Z1,D,UX,UZ,FS/R.
 2) threadTurning — CYCLE99 резьба резцом: таблица/размер/P, наружная/внутренняя, X0,Z0,Z1,LW/LW2,LR,H1,DP/alphaP.
 3) cutoff — CYCLE92: T,D,F,S/V,X0,Z0,FS/R,X1,FR,SR,X2.
 4) contour — контурная обточка: старт X/Z и элементы lineX/lineZ/lineDiag/arc; X всегда диаметр.
 5) drilling — CYCLE82: T,D,F,S/V; поверхность/положение ShopTurn; глубина по острию/хвостовику; Z1; засверловка ZA/FA; сквозное сверление ZD/FD; DT.
 6) tapping — CYCLE84/CYCLE840 «Нарезание внутренней резьбы»: T,D,S/V; режим компенсирующего патрона; sensor/no_sensor; SR или VR для отвода; поверхность/положение; Z1/X1; таблица/размер/P; one_pass/chip_break/chip_removal; D,V2,DT.
+
+
+Заголовок / фактическая заготовка:
+- Поля program описывают РЕАЛЬНУЮ исходную заготовку и программный заголовок ShopTurn, а не готовую геометрию детали.
+- XA — наружный диаметр трубы/цилиндра; XI — внутренний диаметр при abs или толщина стенки при inc для трубы.
+- ZA — начальный размер; ZI — конечный размер (abs) или конечный размер относительно ZA (inc); ZB — размер под обработку (abs/inc).
+- XRA/XRI/ZRA/ZRI — плоскости отвода; SC — безопасное расстояние; XT/ZT — точка смены инструмента; S1 — ограничение частоты главного шпинделя.
+- workOffset — выбранное смещение нулевой точки; writeWorkOffset/ZV относятся к записи Z значения смещения в программе.
+- НЕЛЬЗЯ выводить фактическую заготовку из размеров готовой детали на чертеже, если пользователь явно не сообщил размер болванки/трубы.
+- Если фактическая заготовка не дана явно, XA/XI/ZA/ZI/ZB и связанные поля оставляй null/пустыми.
+- Если во входе есть OPERATOR-CONFIRMED PROGRAM HEADER, скопируй его значения без изменений.
 
 Установки:
 - Каждая физическая установка детали имеет отдельный setup и отдельный Z0/workOffset.
@@ -468,12 +531,37 @@ function validatePlan(plan: Omit<ShopTurnPlan, "geometry">, geometry: DrawingGeo
     program: {
       name: String(raw.program?.name || geometry.partName || "SHOPTURN_1"),
       unit: raw.program?.unit === "inch" ? "inch" : "mm",
-      stockShape: ["cylinder", "tube", "unknown"].includes(raw.program?.stockShape) ? raw.program.stockShape : "unknown",
+      workOffset: String(raw.program?.workOffset || ""),
+      writeWorkOffset: Boolean(raw.program?.writeWorkOffset),
+      ZV: finiteOrNull(raw.program?.ZV),
+      stockShape: ["cylinder","tube","polygon","centeredCuboid","none","unknown"].includes(raw.program?.stockShape)
+        ? raw.program.stockShape
+        : "unknown",
       XA: finiteOrNull(raw.program?.XA),
       XI: finiteOrNull(raw.program?.XI),
+      XIMode: raw.program?.XIMode === "inc" ? "inc" : "abs",
+      ZA: finiteOrNull(raw.program?.ZA),
+      ZI: finiteOrNull(raw.program?.ZI),
+      ZIMode: raw.program?.ZIMode === "inc" ? "inc" : "abs",
       ZB: finiteOrNull(raw.program?.ZB),
+      ZBMode: raw.program?.ZBMode === "inc" ? "inc" : "abs",
+      retractMode: ["simple","extended","all"].includes(raw.program?.retractMode) ? raw.program.retractMode : "simple",
+      XRA: finiteOrNull(raw.program?.XRA),
+      XRAMode: raw.program?.XRAMode === "abs" ? "abs" : "inc",
+      XRI: finiteOrNull(raw.program?.XRI),
+      XRIMode: raw.program?.XRIMode === "inc" ? "inc" : "abs",
+      ZRA: finiteOrNull(raw.program?.ZRA),
+      ZRAMode: raw.program?.ZRAMode === "abs" ? "abs" : "inc",
+      ZRI: finiteOrNull(raw.program?.ZRI),
+      toolChangeFrame: raw.program?.toolChangeFrame === "WCS" ? "WCS" : "MCS",
+      XT: finiteOrNull(raw.program?.XT),
+      ZT: finiteOrNull(raw.program?.ZT),
       SC: finiteOrNull(raw.program?.SC),
-      Smax: finiteOrNull(raw.program?.Smax)
+      S1: finiteOrNull(raw.program?.S1),
+      machiningDirection: ["up_cut","synchronous","unknown"].includes(raw.program?.machiningDirection)
+        ? raw.program.machiningDirection
+        : "unknown",
+      headerConfirmed: Boolean(raw.program?.headerConfirmed)
     },
     setups: Array.isArray(raw.setups) ? raw.setups : [],
     warnings: Array.isArray(raw.warnings) ? raw.warnings.map(String) : [],
@@ -484,15 +572,19 @@ function validatePlan(plan: Omit<ShopTurnPlan, "geometry">, geometry: DrawingGeo
   const maxZ = zLimit(geometry);
   const maxX = xLimit(geometry);
 
-  result.program.XA = finiteOrNull(result.program.XA);
-  result.program.XI = finiteOrNull(result.program.XI);
-  result.program.ZB = finiteOrNull(result.program.ZB);
-  result.program.SC = finiteOrNull(result.program.SC);
-  result.program.Smax = finiteOrNull(result.program.Smax);
+  for (const key of ["ZV","XA","XI","ZA","ZI","ZB","XRA","XRI","ZRA","ZRI","XT","ZT","SC","S1"] as const) {
+    result.program[key] = finiteOrNull(result.program[key]) as any;
+  }
 
-  if (geometry.stockOuterDiameter && result.program.XA && Math.abs(result.program.XA - geometry.stockOuterDiameter) > Math.max(5, geometry.stockOuterDiameter * 0.35)) {
-    warnings.push(`XA=${result.program.XA} не согласуется с извлечённым Ø заготовки ${geometry.stockOuterDiameter}; XA заменён на извлечённое значение.`);
-    result.program.XA = geometry.stockOuterDiameter;
+  if (
+    geometry.stockOuterDiameter &&
+    result.program.XA &&
+    Math.abs(result.program.XA - geometry.stockOuterDiameter) > Math.max(5, geometry.stockOuterDiameter * 0.35)
+  ) {
+    warnings.push(
+      `XA=${result.program.XA} отличается от максимального Ø, извлечённого с чертежа (${geometry.stockOuterDiameter}). ` +
+      `Это допустимо, если XA — фактический диаметр исходной заготовки. Значение XA не заменено автоматически.`
+    );
   }
 
   const checkZ = (holder: any, key: string, context: string) => {
@@ -546,6 +638,7 @@ export async function generateShopTurnPlan(args: {
   imageDataUrl?: string | null;
   memory?: ProjectMemory;
   knowledge?: Knowledge;
+  programHeader?: Partial<ShopTurnPlan["program"]> | null;
 }) {
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
@@ -570,6 +663,10 @@ ${args.prompt || "Составь ShopTurn."}
 ПРОВЕРЕННАЯ ГЕОМЕТРИЯ ЧЕРТЕЖА:
 ${JSON.stringify(geometry, null, 2)}
 
+${args.programHeader?.headerConfirmed
+  ? `OPERATOR-CONFIRMED PROGRAM HEADER (копировать без изменений):\n${JSON.stringify(args.programHeader, null, 2)}`
+  : "Фактическая заготовка оператором не подтверждена. Не выводи размеры болванки из размеров готовой детали."}
+
 Сформируй установки и технологические кадры. Если данных недостаточно, оставляй null и предупреждай.
 `.trim();
 
@@ -579,12 +676,21 @@ ${JSON.stringify(geometry, null, 2)}
     SMART_MODEL,
     planInstructions,
     planPrompt,
-    "shopturn_plan_v12",
+    "shopturn_plan_v13",
     planSchema,
     args.imageDataUrl
   );
 
   let plan = validatePlan(rawPlan, geometry);
+
+  if (args.programHeader?.headerConfirmed) {
+    plan.program = {
+      ...plan.program,
+      ...(args.programHeader as ShopTurnPlan["program"]),
+      headerConfirmed: true
+    };
+  }
+
   const shouldSupervise = process.env.ENABLE_SUPERVISOR !== "false";
 
   if (shouldSupervise) {
@@ -608,11 +714,19 @@ ${JSON.stringify({ program: plan.program, setups: plan.setups, warnings: plan.wa
       SUPERVISOR_MODEL,
       planInstructions,
       supervisorPrompt,
-      "shopturn_plan_v12_supervised",
+      "shopturn_plan_v13_supervised",
       planSchema,
       args.imageDataUrl
     );
     plan = validatePlan(rawPlan, geometry);
+
+    if (args.programHeader?.headerConfirmed) {
+      plan.program = {
+        ...plan.program,
+        ...(args.programHeader as ShopTurnPlan["program"]),
+        headerConfirmed: true
+      };
+    }
   }
 
   return {
@@ -620,6 +734,6 @@ ${JSON.stringify({ program: plan.program, setups: plan.setups, warnings: plan.wa
     model: SMART_MODEL,
     supervised: shouldSupervise,
     supervisorModel: shouldSupervise ? SUPERVISOR_MODEL : null,
-    pipeline: "drawing→geometry→validation→setups→shopturn→supervisor"
+    pipeline: "actual-blank→drawing→geometry→validation→setups→shopturn→supervisor"
   };
 }

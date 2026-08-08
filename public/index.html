@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="CNC AI" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/styles-v12.css" />
+  <link rel="stylesheet" href="/styles-v13.css" />
   <title>CNC AI</title>
 </head>
 <body>
@@ -108,7 +108,7 @@
           <div class="eyebrow">Drawing → Geometry → Setups → SINUMERIK Operate / ShopTurn</div>
           <h2 id="shopTurnTitle">ShopTurn v12</h2>
           <p class="shopturn-help">
-            Сначала чертёж превращается в проверяемую геометрию. Только затем заполняются ячейки ShopTurn по установкам.
+            Сначала задай фактическую заготовку, если она известна. Чертёж отдельно превращается в проверяемую геометрию готовой детали.
           </p>
         </div>
         <button id="closeShopTurnButton" class="icon-button" aria-label="Закрыть ShopTurn">×</button>
@@ -138,7 +138,7 @@
 
           <div class="shopturn-side-title">Чертёж</div>
           <button id="shopTurnGeometryItem" class="shopturn-sequence-item active">Геометрия детали</button>
-          <button id="shopTurnHeaderItem" class="shopturn-sequence-item">Заголовок программы</button>
+          <button id="shopTurnHeaderItem" class="shopturn-sequence-item">Фактическая заготовка / Header</button>
 
           <div class="shopturn-side-title">Установки</div>
           <div id="shopTurnSetups" class="shopturn-operation-list"></div>
@@ -305,7 +305,7 @@
 
 
   <script>
-    // v12: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
+    // v13: keep old Service Workers/caches disabled so deploys cannot get stuck on stale JS.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations()
         .then((regs) => Promise.all(regs.map((r) => r.unregister())))
@@ -317,6 +317,6 @@
         .catch(() => {});
     }
   </script>
-  <script src="/app-v12.js" defer></script>
+  <script src="/app-v13.js" defer></script>
 </body>
 </html>

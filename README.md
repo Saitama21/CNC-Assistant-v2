@@ -365,3 +365,32 @@ D, V2 и DT.
 
 Сохранённый проект v11 с плоским массивом `operations` при открытии автоматически переносится в `Установку 1`.
 Новые проекты v12 сохраняются в той же таблице `cnc_shopturn_projects`; новых Railway Variables и ручных SQL-миграций не требуется.
+
+
+## v13 — фактическая заготовка / Program header
+
+В Visual ShopTurn экран «Заголовок программы» заменён расширенным меню,
+повторяющим логику реального SINUMERIK Operate / ShopTurn:
+
+- Work offset;
+- запись WO / ZV;
+- Blank: Pipe / Cylinder / Polygon / Centered cuboid / none;
+- XA;
+- XI с abs/inc;
+- ZA;
+- ZI с abs/inc;
+- ZB с abs/inc;
+- Retract: Simple / Extended / All;
+- XRA / XRI / ZRA / ZRI;
+- Tool change point: MCS/WCS;
+- XT / ZT;
+- S1;
+- SC;
+- Machined direction.
+
+Есть кнопка **«Применить фактическую заготовку»**. После её нажатия header получает
+`headerConfirmed=true`, и при повторной генерации GPT-5.6 Sol получает операторские
+значения как неизменяемые ограничения.
+
+Критическое изменение v13: размеры фактической болванки/трубы больше не должны
+автоматически выводиться из размеров готовой детали на чертеже.

@@ -553,11 +553,17 @@ app.post("/api/shopturn/generate", authRequired, async (req, res) => {
       }
     }
 
+    const programHeader =
+      req.body?.programHeader && typeof req.body.programHeader === "object"
+        ? req.body.programHeader
+        : null;
+
     const result = await generateShopTurnPlan({
       prompt,
       imageDataUrl,
       memory,
-      knowledge
+      knowledge,
+      programHeader
     });
 
     res.json(result);
