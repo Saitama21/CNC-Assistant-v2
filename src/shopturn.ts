@@ -4,6 +4,7 @@ import {
   buildStructuredKnowledgePrompt
 } from "./prompts.js";
 import type { ProjectMemory } from "./openai.js";
+import { buildManualKnowledgePrompt } from "./manualKnowledge.js";
 
 const apiKey = process.env.OPENAI_API_KEY;
 const SMART_MODEL = process.env.SMART_MODEL || "gpt-5.6-sol";
@@ -649,10 +650,18 @@ export async function generateShopTurnPlan(args: {
 
   const memoryPrompt = buildProjectMemoryPrompt(args.memory);
   const knowledgePrompt = buildStructuredKnowledgePrompt(args.knowledge);
+  const manualPrompt = buildManualKnowledgePrompt(
+    [
+      args.prompt,
+      args.operatorContext?.operatorNote || "",
+      args.programHeader ? JSON.stringify(args.programHeader) : ""
+    ].filter(Boolean).join("\n"),
+    { maxChars: 16000, limit: 8 }
+  );
 
   const geometryRaw = await structured<DrawingGeometry>(
     SMART_MODEL,
-    [geometryRules, memoryPrompt].filter(Boolean).join("\n\n"),
+    [geometryRules, memoryPrompt, manualPrompt].filter(Boolean).join("\n\n"),
     (args.prompt || "Разбери геометрию детали по чертежу.") + "\n\nСначала извлеки геометрию. Не используй числа из рамки/штампа как размеры детали.",
     "drawing_geometry_v12",
     geometrySchema,
@@ -683,7 +692,13 @@ ${args.operatorContext?.operatorNote
 Сформируй установки и технологические кадры. Если данных недостаточно, оставляй null и предупреждай.
 `.trim();
 
-  const planInstructions = [planRules, memoryPrompt, knowledgePrompt].filter(Boolean).join("\n\n");
+  const planManualPrompt = buildManualKnowledgePrompt(
+    `${args.prompt}\n${JSON.stringify(geometry)}`,
+    { maxChars: 18000, limit: 9 }
+  );
+  const planInstructions = [planRules, memoryPrompt, knowledgePrompt, planManualPrompt || manualPrompt]
+    .filter(Boolean)
+    .join("\n\n");
 
   let rawPlan = await structured<Omit<ShopTurnPlan, "geometry">>(
     SMART_MODEL,

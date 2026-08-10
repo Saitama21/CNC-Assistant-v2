@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { listAvailableModels, runChat, type AppMessage, type ProjectMemory } from "./openai.js";
 import { generateShopTurnPlan } from "./shopturn.js";
+import { manualKnowledgeStats } from "./manualKnowledge.js";
 import {
   databaseState,
   initDatabase,
@@ -239,6 +240,7 @@ app.get("/api/health", (_req, res) => {
     fastModel: process.env.FAST_MODEL || "gpt-5-mini",
     smartModel: process.env.SMART_MODEL || "gpt-5.6-sol",
     supervisorEnabled: process.env.ENABLE_SUPERVISOR !== "false",
+    manualKnowledge: manualKnowledgeStats(),
     databaseConfigured: db.configured,
     databaseReady: db.ready
   });

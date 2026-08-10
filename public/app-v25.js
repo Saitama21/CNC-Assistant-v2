@@ -10,6 +10,7 @@ const modeSelect = document.getElementById("modeSelect");
 const themeToggleButton = document.getElementById("themeToggleButton");
 const themeToggleIcon = document.getElementById("themeToggleIcon");
 const themeToggleText = document.getElementById("themeToggleText");
+const logoutButton = document.getElementById("logoutButton");
 const themeColorMeta = document.getElementById("themeColorMeta");
 const newChatButton = document.getElementById("newChatButton");
 const statusBar = document.getElementById("statusBar");
@@ -50,6 +51,7 @@ const mCodesList = document.getElementById("mCodesList");
 const journalList = document.getElementById("journalList");
 const shopTurnButton = document.getElementById("shopTurnButton");
 const shopTurnModal = document.getElementById("shopTurnModal");
+const shopTurnPanel = shopTurnModal.querySelector(".shopturn-panel");
 const closeShopTurnButton = document.getElementById("closeShopTurnButton");
 const shopTurnImageInput = document.getElementById("shopTurnImageInput");
 const shopTurnImageWrap = document.getElementById("shopTurnImageWrap");
@@ -85,7 +87,7 @@ const STORAGE_KEY = "cnc-ai-history-v2";
 const MODE_KEY = "cnc-ai-mode-v2";
 const THEME_KEY = "cnc-ai-theme-v1";
 const MEMORY_KEY = "cnc-ai-project-memory-v1";
-const UI_VERSION = "v18";
+const UI_VERSION = "v25";
 
 const DEFAULT_MEMORY = Object.freeze({
   machine: "Станок: SK52PT-Y\nСтойка: SINUMERIK 828D / ShopTurn",
@@ -129,6 +131,7 @@ let shopTurnSelection = { kind: "geometry", setupIndex: -1, opIndex: -1 };
 
 modeSelect.value = localStorage.getItem(MODE_KEY) || "auto";
 initializeTheme();
+initializeAdaptiveLayout();
 renderStoredHistory();
 initializeApp();
 
@@ -169,6 +172,37 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
+
+logoutButton?.addEventListener("click", async () => {
+  if (busy) return;
+
+  const originalText = logoutButton.querySelector(".logout-label")?.textContent || "Выйти";
+  logoutButton.disabled = true;
+  const label = logoutButton.querySelector(".logout-label");
+  if (label) label.textContent = "Выход…";
+
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    // Close private UI surfaces before returning to login.
+    memoryModal?.classList.add("hidden");
+    knowledgeModal?.classList.add("hidden");
+    shopTurnModal?.classList.add("hidden");
+
+    showLogin("Сессия завершена. Введи пароль, чтобы войти снова.");
+    loginPassword.value = "";
+  } catch {
+    showLogin("Сессия завершена локально. Введи пароль, чтобы войти снова.");
+  } finally {
+    if (label) label.textContent = originalText;
+    logoutButton.disabled = false;
+  }
+});
+
 async function initializeApp() {
   try {
     const response = await fetch("/api/auth/status", {
@@ -199,6 +233,7 @@ async function initializeApp() {
 }
 
 function showLogin(message = "") {
+  logoutButton?.classList.add("hidden");
   loginModal.classList.remove("hidden");
   loginModal.setAttribute("aria-hidden", "false");
   loginMessage.textContent =
@@ -212,6 +247,7 @@ function hideLogin() {
   loginModal.classList.add("hidden");
   loginModal.setAttribute("aria-hidden", "true");
   setControlsDisabled(false);
+  logoutButton?.classList.remove("hidden");
   promptInput.focus();
 }
 
@@ -233,6 +269,43 @@ themeToggleButton.addEventListener("click", () => {
   const current = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   applyTheme(current === "dark" ? "light" : "dark", true);
 });
+
+
+function initializeAdaptiveLayout() {
+  const root = document.documentElement;
+
+  const apply = () => {
+    const viewportWidth = Math.round(window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth);
+    const viewportHeight = Math.round(window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight);
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches === true;
+    const landscape = viewportWidth > viewportHeight;
+
+    let layout = "desktop";
+    if (viewportWidth <= 430) layout = "phone";
+    else if (viewportWidth <= 760) layout = "compact";
+    else if (viewportWidth <= 1180) layout = "tablet";
+
+    root.dataset.layout = layout;
+    root.dataset.orientation = landscape ? "landscape" : "portrait";
+    root.dataset.pointer = coarse ? "touch" : "fine";
+
+    root.style.setProperty("--viewport-width", `${viewportWidth}px`);
+    root.style.setProperty("--viewport-height", `${viewportHeight}px`);
+  };
+
+  apply();
+
+  let resizeTimer = 0;
+  const schedule = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(apply, 50);
+  };
+
+  window.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("orientationchange", schedule, { passive: true });
+  window.visualViewport?.addEventListener("resize", schedule, { passive: true });
+  window.visualViewport?.addEventListener("scroll", schedule, { passive: true });
+}
 
 function initializeTheme() {
   const saved = localStorage.getItem(THEME_KEY);
@@ -1582,6 +1655,10 @@ function renderOperatorWorkflow() {
   const coach = operatorCoachFor(workflow.currentStep);
   const projectState = projectWorkflowState();
 
+  if (shopTurnPanel) {
+    shopTurnPanel.dataset.mobileStep = workflow.currentStep;
+  }
+
   operatorWorkflowSteps.textContent = "";
 
   OPERATOR_STEPS.forEach((step, index) => {
@@ -1629,8 +1706,36 @@ function renderOperatorWorkflow() {
       ? (shopTurnPlan.program.headerConfirmed ? "✓ Заготовка подтверждена" : "Подтверди в Header")
       : (confirmLabels[workflow.currentStep] || "Подтвердить этап");
 
+  applyMobileOperatorActions(workflow.currentStep);
   renderOperatorStepPanel(workflow.currentStep);
   applyOperatorFieldStates();
+}
+
+
+function applyMobileOperatorActions(stepId) {
+  const mobile = window.matchMedia?.("(max-width: 600px)").matches;
+  if (!mobile) {
+    operatorOpenStep.classList.remove("mobile-hidden");
+    return;
+  }
+
+  const openLabels = {
+    blank: "Открыть Header",
+    drawing: "К чертежу",
+    geometry: "Открыть геометрию",
+    setups: "Открыть Z0",
+    technology: "Открыть кадр"
+  };
+
+  const usefulOpen = ["blank", "drawing", "geometry", "setups", "technology"].includes(stepId);
+  operatorOpenStep.classList.toggle("mobile-hidden", !usefulOpen);
+  operatorOpenStep.textContent = openLabels[stepId] || "Открыть этап";
+
+  if (stepId === "simulation") {
+    operatorConfirmStep.textContent = shopTurnPlan.operatorWorkflow.simulationConfirmed
+      ? "✓ Simulation проверена"
+      : "Подтвердить Simulation";
+  }
 }
 
 function renderOperatorStepPanel(stepId) {
@@ -2834,10 +2939,13 @@ function updateStatusText() {
         ? "sync"
         : "local";
 
+  const manualSources = Number(lastHealthPayload.manualKnowledge?.sources || 0);
+
   statusText.textContent =
     `${lastHealthPayload.fastModel} / ${lastHealthPayload.smartModel}` +
     (lastHealthPayload.supervisorEnabled ? " · supervisor ON" : " · supervisor OFF") +
     ` · память ${memoryItemCount()} ${memoryLabel}` +
+    (manualSources ? ` · Siemens KB ${manualSources}` : "") +
     ` · UI ${UI_VERSION}`;
 }
 
